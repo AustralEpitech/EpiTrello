@@ -1,0 +1,2 @@
+Django~=5.2.0
+uvicorn~=0.38.0
