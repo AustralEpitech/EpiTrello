@@ -12,26 +12,28 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from os import getenv
+from dotenv import load_dotenv
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv(BASE_DIR / ".env")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+DEBUG = getenv("DEBUG", "0") == "1"
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = (
-    "django-insecure-9baw09_ldbeo+p4jrad(mqkd+7+^)le^_@cv-s&wl$+ba&+m#9"
-)
+SECRET_KEY = getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        logging.warning("SECRET_KEY missing; using insecure fallback for debug only.")
+        SECRET_KEY = "django-insecure-please-change-me1"
+    else:
+        raise RuntimeError("SECRET_KEY environment variable is required in production (DEBUG=False).")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = getenv("DEBUG", False)
-
-ALLOWED_HOSTS = []
-
-
-# Application definition
+ALLOWED_HOSTS = [h for h in getenv("ALLOWED_HOSTS", "").split(",") if h]
+logging.debug(f"ALLOWED_HOSTS set to: {ALLOWED_HOSTS}")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -123,3 +125,17 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+}
