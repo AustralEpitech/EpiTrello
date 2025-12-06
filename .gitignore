@@ -168,3 +168,4 @@ cython_debug/
 .idea/
 *.iml
 # End of https://www.toptal.com/developers/gitignore/api/django
+perso/
