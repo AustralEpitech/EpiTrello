@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EpiTrello - Mes Tableaux</title>
+</head>
+<body>
+    <h1>Mes Tableaux</h1>
+    <ul>
+        {% for board in boards %}
+            <li><a href="{% url 'boards:board_detail' board.id %}">{{ board.title }}</a></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

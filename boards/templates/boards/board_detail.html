@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ board.title }} - EpiTrello</title>
+</head>
+<body>
+    <h1>{{ board.title }}</h1>
+    <p>Propriétaire : {{ board.owner }}</p>
+
+    <h2>Listes</h2>
+    <ul>
+        {% for list in board.lists.all %}
+            <li>{{ list.title }}
+                <ul>
+                    {% for card in list.cards.all %}
+                        <li>{{ card.title }}</li>
+                    {% endfor %}
+                </ul>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
