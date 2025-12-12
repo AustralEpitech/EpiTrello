@@ -1,3 +1,4 @@
-python-dotenv
-Django~=5.2.0
-uvicorn~=0.38.0
+Django~=6.0
+psycopg[binary]~=3.3
+python-dotenv~=1.2
+uvicorn~=0.38

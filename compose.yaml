@@ -4,3 +4,28 @@ services:
     build: .
     ports:
       - "8000:8000"
+    command:
+      - sh
+      - -c
+      - ./manage.py migrate && uvicorn --host 0 epitrello.asgi:application
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=db
+      - POSTGRES_USER=db
+      - POSTGRES_PASSWORD=db
+    depends_on:
+      - db
+
+  db:
+    image: docker.io/postgres:18
+    environment:
+      - POSTGRES_DB=db
+      - POSTGRES_USER=db
+      - POSTGRES_PASSWORD=db
+    volumes:
+      - db:/var/lib/postgresql/
+
+volumes:
+  db: {}
