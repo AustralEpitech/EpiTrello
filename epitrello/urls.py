@@ -18,6 +18,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
+from boards import views as board_views
+from django.contrib.auth import views as auth_views
 
 
 def home(request):
@@ -25,6 +27,9 @@ def home(request):
 
 
 urlpatterns = [
+    path("admin/logout/", board_views.admin_logout, name="admin_logout"),
     path("admin/", admin.site.urls),
+    path("accounts/", include("django.contrib.auth.urls")),
+    path("", board_views.home, name="home"),
     path("boards/", include("boards.urls")),
 ]

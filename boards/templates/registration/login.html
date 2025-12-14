@@ -1,0 +1,51 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <title>Connexion - EpiTrello</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex min-h-full items-center justify-center bg-slate-950 px-4 py-12 text-white">
+    <div class="w-full max-w-md space-y-6 rounded-3xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl">
+        <div class="text-center space-y-2">
+            <p class="text-xs uppercase tracking-[0.4em] text-slate-500">EpiTrello</p>
+            <h1 class="text-2xl font-bold">Connexion</h1>
+            {% if form.errors %}
+                <p class="text-sm text-red-400">Identifiants invalides. Merci de réessayer.</p>
+            {% endif %}
+            {% if next %}
+                <p class="text-xs text-slate-400">Vous devez être connecté pour accéder à cette page.</p>
+            {% endif %}
+        </div>
+        <form method="post" action="" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="text-sm font-semibold text-slate-300">Nom d'utilisateur</label>
+                <input type="text" name="username" autofocus required value="{{ form.username.value|default:'' }}"
+                       class="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none">
+            </div>
+            <div>
+                <label class="text-sm font-semibold text-slate-300">Mot de passe</label>
+                <input type="password" name="password" required
+                       class="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none">
+            </div>
+            <div class="flex items-center justify-between text-sm text-slate-400">
+                <label class="inline-flex items-center gap-2">
+                    <input type="checkbox" name="remember" class="rounded border-slate-600 bg-slate-900">
+                    Se souvenir de moi
+                </label>
+                <a href="{% url 'password_reset' %}" class="text-emerald-300 hover:text-emerald-200">Mot de passe oublié ?</a>
+            </div>
+            {% if form.non_field_errors %}
+                <p class="text-sm text-red-400">{{ form.non_field_errors }}</p>
+            {% endif %}
+            <button type="submit" class="w-full rounded-2xl bg-emerald-400 py-2 text-sm font-semibold text-slate-900 shadow hover:bg-emerald-300">Se connecter</button>
+            <input type="hidden" name="next" value="{{ next }}">
+        </form>
+        <p class="text-center text-sm text-slate-400">Pas encore de compte ? <a href="{% url 'admin:login' %}" class="text-emerald-300 hover:text-emerald-200">Contacte l'admin</a></p>
+    </div>
+</body>
+</html>
+

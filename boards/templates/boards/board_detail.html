@@ -1,23 +1,502 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
+    <meta charset="UTF-8">
     <title>{{ board.title }} - EpiTrello</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js" defer></script>
 </head>
-<body>
-    <h1>{{ board.title }}</h1>
-    <p>Propriétaire : {{ board.owner }}</p>
+<body class="min-h-screen bg-slate-950 text-white">
+    <div id="toast-stack" class="fixed inset-x-0 top-6 z-50 mx-auto flex max-w-md flex-col gap-3 px-4"></div>
+    <div class="flex min-h-screen flex-col">
+        <header class="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur">
+            <div class="flex items-center justify-between px-4 py-4">
+                <button onclick="window.location.href='{% url 'boards:board_list' %}'" class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10">← Tableaux</button>
+                <div class="flex items-center gap-2">
+                    <button class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10" onclick="window.location.href='{% url 'boards:create_board' %}'">Nouveau tableau</button>
+                    <button class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10" onclick="toggleListForm('global')">Nouvelle liste</button>
+                </div>
+            </div>
+            <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 pb-4">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.4em] text-slate-400">EpiTrello</p>
+                    <h1 class="text-3xl font-bold text-white">{{ board.title }}</h1>
+                    <p class="text-sm text-slate-400">Propriétaire : {{ board.owner }}</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <form method="get" action="" class="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white">
+                        <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" name="q" placeholder="Rechercher" class="bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none" value="{{ request.GET.q }}">
+                    </form>
+                    <div class="flex gap-2">
+                        <button class="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10" onclick="setFilter('labels')">Labels</button>
+                        <button class="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10" onclick="setFilter('members')">Membres</button>
+                        <button class="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10" onclick="setFilter('dates')">Dates</button>
+                    </div>
+                </div>
+            </div>
+        </header>
 
-    <h2>Listes</h2>
-    <ul>
-        {% for list in board.lists.all %}
-            <li>{{ list.title }}
-                <ul>
-                    {% for card in list.cards.all %}
-                        <li>{{ card.title }}</li>
-                    {% endfor %}
-                </ul>
-            </li>
-        {% endfor %}
-    </ul>
+        <main class="flex-1 overflow-x-auto bg-gradient-to-b from-slate-950 via-slate-930 to-slate-900">
+            <div class="mx-auto flex min-h-[calc(100vh-220px)] max-w-7xl gap-4 px-4 py-6" id="board-canvas">
+                {% for list in board.lists.all %}
+                    <div class="w-80 flex-shrink-0 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl">
+                        <div class="flex items-center justify-between text-white">
+                            <h2 class="text-base font-semibold">{{ list.title }}</h2>
+                            <button type="button" class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10" onclick="toggleCardForm('{{ list.id }}')">+</button>
+                        </div>
+                        <div class="card-container mt-4 flex flex-col gap-3" data-list-id="{{ list.id }}">
+                            {% for card in list.cached_cards %}
+                                <article class="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-white shadow transition hover:-translate-y-1" data-card-id="{{ card.id }}">
+                                    <div class="flex items-start justify-between">
+                                        <h3 class="text-sm font-semibold leading-tight">{{ card.title }}</h3>
+                                        {% if card.due_date %}
+                                            <span class="text-xs font-semibold text-emerald-300">📅 {{ card.due_date|date:"d/m" }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if card.labels.all %}
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            {% for label in card.labels.all %}
+                                                <span class="inline-flex items-center rounded-full px-2 py-1 text-2xs font-semibold text-white" style="background-color: {{ label.color }}">
+                                                    {{ label.name }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    {% if card.description %}
+                                        <p class="mt-2 text-sm text-slate-300 line-clamp-3">{{ card.description }}</p>
+                                    {% endif %}
+                                    <div class="mt-4 flex items-center justify-between text-xs text-slate-400">
+                                        <span>✅ {{ card.completed_subtasks }}/{{ card.total_subtasks }}</span>
+                                        <span>💬 {{ card.comment_count }}</span>
+                                    </div>
+                                </article>
+                            {% empty %}
+                                <p class="text-sm text-slate-500">Aucune carte.</p>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-4">
+                            <form method="post" action="{% url 'boards:create_card' board.id %}" class="space-y-2 hidden" data-card-form="{{ list.id }}">
+                                {% csrf_token %}
+                                <input type="hidden" name="list_id" value="{{ list.id }}">
+                                <input type="text" name="title" placeholder="Titre" class="w-full rounded-xl border border-white/10 bg-slate-900/30 px-3 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none" required>
+                                <textarea name="description" rows="2" placeholder="Description" class="w-full rounded-xl border border-white/10 bg-slate-900/30 px-3 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none"></textarea>
+                                <button type="submit" class="c-button w-full rounded-xl bg-emerald-400 px-3 py-2 text-sm font-semibold text-slate-900">Ajouter</button>
+                            </form>
+                            <button type="button" class="mt-2 w-full rounded-xl border border-dashed border-white/20 px-3 py-2 text-sm text-white hover:bg-white/5" onclick="toggleCardForm('{{ list.id }}')">+ Nouvelle carte</button>
+                        </div>
+                    </div>
+                {% endfor %}
+                <div class="flex w-64 flex-shrink-0 flex-col gap-2 rounded-3xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white">
+                    <p class="font-semibold">Ajouter une liste</p>
+                    <form method="post" action="{% url 'boards:create_list' board.id %}" class="space-y-2" data-card-form="global">
+                        {% csrf_token %}
+                        <input type="text" name="title" placeholder="Titre" class="w-full rounded-xl border border-white/20 bg-slate-900/40 px-3 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none" required>
+                        <button class="w-full rounded-xl bg-emerald-400 px-3 py-2 text-sm font-semibold text-slate-900">Créer</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <button class="fixed bottom-6 right-6 z-40 rounded-full bg-emerald-400 p-4 text-slate-900 shadow-xl" onclick="toggleFab()">
+        +
+    </button>
+
+    <div id="fab-menu" class="fixed bottom-20 right-6 z-40 hidden w-56 rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+        <button onclick="openQuickCard()" class="w-full rounded-xl px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Nouvelle carte</button>
+        <button onclick="toggleListForm('global')" class="mt-2 w-full rounded-xl px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Nouvelle liste</button>
+    </div>
+
+    <div id="card-modal" class="fixed inset-0 z-40 hidden items-start justify-center bg-slate-900/60 px-4 py-10 text-slate-900">
+        <div class="w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-slate-400">Carte</p>
+                    <h2 id="modal-card-title" class="text-2xl font-semibold"></h2>
+                </div>
+                <button id="modal-close" class="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-50">
+                    ✕
+                </button>
+            </div>
+            <div class="grid gap-6 px-6 py-6 lg:grid-cols-[2fr,1fr]">
+                <div class="space-y-6">
+                    <form id="card-main-form" class="space-y-3">
+                        <input type="hidden" name="card-id">
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Titre</label>
+                        <input name="title" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required>
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Date limite</label>
+                        <input type="datetime-local" name="due_date" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Description</label>
+                        <textarea name="description" rows="4" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" placeholder="Ajoute des détails"></textarea>
+                        <button class="c-button rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Sauvegarder</button>
+                    </form>
+
+                    <section>
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Sous-tâches</h3>
+                            <form id="subtask-create" class="flex gap-2 text-sm">
+                                <input name="title" class="rounded-md border border-slate-200 px-2 py-1" placeholder="Nouvelle sous-tâche">
+                                <button class="c-button rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">Ajouter</button>
+                            </form>
+                        </div>
+                        <ul id="subtasks-list" class="mt-3 space-y-2 text-sm"></ul>
+                    </section>
+
+                    <section>
+                        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Commentaires</h3>
+                        <form id="comment-create" class="mt-3 flex gap-2 text-sm">
+                            <textarea name="content" rows="2" class="flex-1 rounded-md border border-slate-200 px-3 py-2" placeholder="Écrire un commentaire..."></textarea>
+                            <button class="c-button rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Envoyer</button>
+                        </form>
+                        <ul id="comments-list" class="mt-4 space-y-3 text-sm"></ul>
+                    </section>
+                </div>
+
+                <aside class="space-y-6">
+                    <section>
+                        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Labels</h3>
+                        <div id="labels-pills" class="mt-3 flex flex-wrap gap-2"></div>
+                        <form id="label-create" class="mt-4 space-y-2 text-sm">
+                            <input type="text" name="name" placeholder="Nom du label" class="w-full rounded-md border border-slate-200 px-3 py-2 focus:border-blue-500 focus:outline-none">
+                            <input type="color" name="color" value="#3b82f6" class="h-10 w-full rounded-md border border-slate-200">
+                            <button class="c-button w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Créer un label</button>
+                        </form>
+                    </section>
+                    <section class="rounded-lg border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600">
+                        <button id="card-delete" class="mt-4 w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100">Archiver la carte</button>
+                    </section>
+                </aside>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let activeFilter = null
+        const toastStack = document.getElementById('toast-stack')
+        function setFilter(type) {
+            activeFilter = type
+            pushToast(`Filtre ${type} activé`, 'success')
+        }
+        function toggleFab() {
+            document.getElementById('fab-menu').classList.toggle('hidden')
+        }
+        function toggleListForm(id) {
+            const form = document.querySelector(`[data-card-form="${id}"]`)
+            if (form) form.classList.toggle('hidden')
+        }
+        function openQuickCard() {
+            toggleFab()
+            openBoardModal()
+        }
+        function pushToast(message, variant = 'success') {
+            const tone = variant.includes('error') ? 'red' : 'emerald'
+            const toast = document.createElement('div')
+            toast.className = `rounded-2xl border border-${tone}-300/40 bg-white/90 px-4 py-2 text-sm font-medium text-slate-900 shadow-lg backdrop-blur transition`
+            toast.textContent = message
+            toastStack.appendChild(toast)
+            setTimeout(() => {
+                toast.classList.add('translate-y-1', 'opacity-0')
+                toast.addEventListener('transitionend', () => toast.remove())
+            }, 2600)
+        }
+
+        function toggleCardForm(listId) {
+            const form = document.querySelector(`[data-card-form="${listId}"]`);
+            if (!form) return;
+            form.classList.toggle("hidden");
+        }
+
+        const modal = document.getElementById('card-modal')
+        const closeModal = () => modal.classList.add('hidden')
+        document.getElementById('modal-close').addEventListener('click', closeModal)
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeModal()
+        })
+
+        const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+        const csrftoken = getCookie('csrftoken')
+        const boardBaseUrl = "{% url 'boards:board_detail' board.id %}"
+        const endpoints = {
+            detail: (cardId) => `${boardBaseUrl}cards/${cardId}/`,
+            update: (cardId) => `${boardBaseUrl}cards/${cardId}/update`,
+            labelToggle: (cardId) => `${boardBaseUrl}cards/${cardId}/labels/toggle`,
+            subtaskCreate: (cardId) => `${boardBaseUrl}cards/${cardId}/subtasks/create`,
+            subtaskToggle: (cardId, subtaskId) => `${boardBaseUrl}cards/${cardId}/subtasks/${subtaskId}/toggle`,
+            subtaskDelete: (cardId, subtaskId) => `${boardBaseUrl}cards/${cardId}/subtasks/${subtaskId}/delete`,
+            commentCreate: (cardId) => `${boardBaseUrl}cards/${cardId}/comments/create`,
+            labelCreate: (cardId) => `${boardBaseUrl}cards/${cardId}/labels/create`,
+            labelDelete: (cardId, labelId) => `${boardBaseUrl}cards/${cardId}/labels/${labelId}/delete`,
+            cardDelete: (cardId) => `${boardBaseUrl}cards/${cardId}/delete`,
+        }
+
+        const dom = {
+            title: document.getElementById('modal-card-title'),
+            mainForm: document.getElementById('card-main-form'),
+            dueDate: document.querySelector('#card-main-form input[name="due_date"]'),
+            description: document.querySelector('#card-main-form textarea[name="description"]'),
+            subtasks: document.getElementById('subtasks-list'),
+            subtaskForm: document.getElementById('subtask-create'),
+            comments: document.getElementById('comments-list'),
+            commentForm: document.getElementById('comment-create'),
+            labels: document.getElementById('labels-pills'),
+            labelForm: document.getElementById('label-create'),
+            deleteButton: document.getElementById('card-delete'),
+        }
+
+        const renderCard = (card) => {
+            dom.title.textContent = card.title
+            dom.mainForm.title.value = card.title
+            dom.mainForm.description.value = card.description
+            dom.mainForm.due_date.value = card.due_date_local || ''
+            dom.mainForm.dataset.cardId = card.id
+            dom.subtaskForm.dataset.cardId = card.id
+            dom.commentForm.dataset.cardId = card.id
+            dom.labelForm.dataset.cardId = card.id
+            dom.deleteButton.dataset.cardId = card.id
+
+            const preview = document.querySelector(`[data-card-id="${card.id}"]`)
+            if (preview) {
+                const header = preview.querySelector('.flex.items-start')
+                let dueEl = preview.querySelector('[data-card-due]')
+                if (!dueEl) {
+                    dueEl = document.createElement('span')
+                    dueEl.dataset.cardDue = ''
+                    dueEl.className = 'text-xs text-slate-500'
+                    header.appendChild(dueEl)
+                }
+                if (card.due_date_display) {
+                    dueEl.textContent = `📅 ${card.due_date_display}`
+                    dueEl.classList.remove('hidden')
+                } else {
+                    dueEl.classList.add('hidden')
+                }
+                let labelsWrapper = preview.querySelector('[data-card-labels]')
+                if (!labelsWrapper) {
+                    labelsWrapper = document.createElement('div')
+                    labelsWrapper.dataset.cardLabels = ''
+                    labelsWrapper.className = 'mt-3 flex flex-wrap gap-2'
+                    const anchor = preview.querySelector('.mt-4')
+                    preview.insertBefore(labelsWrapper, anchor)
+                }
+                labelsWrapper.innerHTML = ''
+                if (!card.labels.length) {
+                    labelsWrapper.classList.add('hidden')
+                } else {
+                    labelsWrapper.classList.remove('hidden')
+                    card.labels.forEach(label => {
+                        const span = document.createElement('span')
+                        span.className = 'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold text-white'
+                        span.style.backgroundColor = label.color
+                        span.textContent = label.name
+                        labelsWrapper.appendChild(span)
+                    })
+                }
+            }
+
+            dom.labels.innerHTML = ''
+            card.available_labels.forEach(label => {
+                const pill = document.createElement('div')
+                pill.className = 'inline-flex items-center gap-2 rounded-full bg-slate-900/20 px-3 py-1 text-xs font-semibold text-slate-900'
+                const swatch = document.createElement('span')
+                swatch.className = 'inline-block h-3 w-3 rounded-full'
+                swatch.style.backgroundColor = label.color
+                const title = document.createElement('span')
+                title.textContent = label.name
+                const action = document.createElement('button')
+                action.type = 'button'
+                action.textContent = label.assigned ? 'Retirer' : 'Ajouter'
+                action.className = 'text-xs font-semibold text-emerald-600'
+                action.addEventListener('click', (event) => {
+                    event.stopPropagation()
+                    if (label.assigned) {
+                        fetch(endpoints.labelDelete(card.id, label.id), { method: 'POST', headers: { 'X-CSRFToken': csrftoken }})
+                            .then(res => res.json()).then(renderCard)
+                    } else {
+                        toggleLabel(card.id, label.id)
+                    }
+                })
+                pill.appendChild(swatch)
+                pill.appendChild(title)
+                pill.appendChild(action)
+                dom.labels.appendChild(pill)
+            })
+
+            dom.subtasks.innerHTML = ''
+            card.subtasks.forEach(subtask => {
+                const li = document.createElement('li')
+                li.className = 'flex items-center justify-between rounded-md border border-slate-200 px-3 py-2'
+                li.innerHTML = `
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" ${subtask.is_completed ? 'checked' : ''}>
+                        <span class="${subtask.is_completed ? 'line-through text-slate-400' : ''}">${subtask.title}</span>
+                    </label>
+                    <button class="text-xs text-red-500">Supprimer</button>
+                `
+                const checkbox = li.querySelector('input[type="checkbox"]')
+                checkbox.addEventListener('change', () => toggleSubtask(card.id, subtask.id))
+                li.querySelector('button').addEventListener('click', () => deleteSubtask(card.id, subtask.id))
+                dom.subtasks.appendChild(li)
+            })
+
+            dom.comments.innerHTML = ''
+            card.comments.forEach(comment => {
+                const li = document.createElement('li')
+                li.className = 'rounded-lg border border-slate-200 px-3 py-2'
+                li.innerHTML = `
+                    <p class="text-xs font-semibold text-slate-500">${comment.author} — ${comment.created_at}</p>
+                    <p class="text-sm text-slate-800">${comment.content}</p>
+                `
+                dom.comments.appendChild(li)
+            })
+            modal.classList.remove('hidden')
+        }
+
+        const fetchCard = (cardId) => {
+            fetch(endpoints.detail(cardId))
+                .then(res => res.json())
+                .then(card => {
+                    renderCard(card)
+                })
+        }
+
+        const jsonFetch = (url, payload) => fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+            },
+            body: JSON.stringify(payload)
+        }).then(res => {
+            if (!res.ok) throw res
+            return res.json()
+        }).then(renderCard)
+
+        const toggleLabel = (cardId, labelId) => jsonFetch(endpoints.labelToggle(cardId), { label_id: labelId })
+        const toggleSubtask = (cardId, subtaskId) => jsonFetch(endpoints.subtaskToggle(cardId, subtaskId), {})
+        const deleteSubtask = (cardId, subtaskId) => jsonFetch(endpoints.subtaskDelete(cardId, subtaskId), {})
+
+        dom.mainForm.addEventListener('submit', (event) => {
+            event.preventDefault()
+            const cardId = dom.mainForm.dataset.cardId
+            jsonFetch(endpoints.update(cardId), {
+                title: dom.mainForm.title.value,
+                description: dom.mainForm.description.value,
+                due_date: dom.mainForm.due_date.value,
+            })
+        })
+
+        dom.subtaskForm.addEventListener('submit', (event) => {
+            event.preventDefault()
+            const title = dom.subtaskForm.title.value.trim()
+            if (!title) return
+            const cardId = dom.subtaskForm.dataset.cardId
+            jsonFetch(endpoints.subtaskCreate(cardId), { title }).then(() => {
+                dom.subtaskForm.reset()
+            })
+        })
+
+        dom.commentForm.addEventListener('submit', (event) => {
+            event.preventDefault()
+            const content = dom.commentForm.content.value.trim()
+            if (!content) return
+            const cardId = dom.commentForm.dataset.cardId
+            jsonFetch(endpoints.commentCreate(cardId), { content }).then(() => {
+                dom.commentForm.reset()
+            }).catch(res => {
+                if (res.status === 403) {
+                    alert('Connexion requise pour commenter.')
+                }
+            })
+        })
+
+        dom.labelForm.addEventListener('submit', (event) => {
+            event.preventDefault()
+            const cardId = dom.labelForm.dataset.cardId
+            const name = dom.labelForm.name.value.trim()
+            const color = dom.labelForm.color.value
+            if (!name) return
+            jsonFetch(endpoints.labelCreate(cardId), { name, color }).then(() => {
+                dom.labelForm.reset()
+                dom.labelForm.color.value = '#3b82f6'
+            })
+        })
+
+        dom.deleteButton.addEventListener('click', () => {
+            const cardId = dom.deleteButton.dataset.cardId
+            if (!confirm('Archiver cette carte ?')) return
+            fetch(endpoints.cardDelete(cardId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                },
+            }).then(res => res.json()).then(data => {
+                const preview = document.querySelector(`[data-card-id="${data.card_id}"]`)
+                if (preview) preview.remove()
+                closeModal()
+            })
+        })
+
+        document.querySelectorAll('[data-card-id]').forEach(cardEl => {
+            cardEl.addEventListener('click', (event) => {
+                event.stopPropagation()
+                const cardId = cardEl.dataset.cardId
+                fetchCard(cardId)
+            })
+        })
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const reorderUrl = "{% url 'boards:reorder_cards' board.id %}";
+            const listSortable = new Sortable(document.getElementById('board-canvas'), {
+                animation: 200,
+                handle: 'h2',
+                draggable: '.w-80',
+            });
+
+            const debounce = (fn, delay = 400) => {
+                let timeout;
+                return (...args) => {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => fn.apply(null, args), delay);
+                };
+            };
+
+            const sendOrder = debounce(() => {
+                const listsPayload = [];
+                document.querySelectorAll('.card-container').forEach(container => {
+                    const listId = container.dataset.listId;
+                    const cardIds = Array.from(container.querySelectorAll('[data-card-id]')).map(card => card.dataset.cardId);
+                    listsPayload.push({ id: listId, card_ids: cardIds });
+                });
+
+                fetch(reorderUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: JSON.stringify({ lists: listsPayload })
+                }).catch(() => {
+                    alert('Impossible de sauvegarder l\'ordre pour le moment.');
+                });
+            }, 300);
+
+            document.querySelectorAll('.card-container').forEach(container => {
+                new Sortable(container, {
+                    group: 'cards',
+                    animation: 150,
+                    ghostClass: 'opacity-50',
+                    onEnd: sendOrder,
+                });
+            });
+        });
+    </script>
 </body>
 </html>

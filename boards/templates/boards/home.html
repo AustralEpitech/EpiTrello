@@ -1,0 +1,158 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>EpiTrello - Organise tout</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-white">
+    <header class="px-6 py-4">
+        <div class="mx-auto flex max-w-6xl items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="rounded-lg bg-emerald-400/20 p-2">
+                    <span class="text-xl font-black text-emerald-300">ET</span>
+                </div>
+                <div>
+                    <p class="text-xs uppercase tracking-[0.4em] text-slate-400">EpiTrello</p>
+                    <p class="text-sm text-slate-500">Un Trello minimaliste pour ton équipe</p>
+                </div>
+            </div>
+            <nav class="flex items-center gap-4 text-sm">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'boards:board_list' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20">Mes tableaux</a>
+                    <a href="{% url 'admin:logout' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10">Déconnexion</a>
+                {% else %}
+                    <a href="{% url 'admin:login' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20">Connexion</a>
+                    <a href="{% url 'admin:login' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10">S'inscrire</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12">
+        <section class="grid gap-10 lg:grid-cols-2">
+            <div class="space-y-6">
+                <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wide text-emerald-300">Nouveau · Epitech</span>
+                <h1 class="text-4xl font-black leading-tight text-white sm:text-5xl">{{ hero.title }}</h1>
+                <p class="text-lg text-slate-300">{{ hero.subtitle }}</p>
+                <div class="flex flex-wrap gap-4">
+                    {% if hero.cta_primary %}
+                        <a href="{{ hero.cta_primary.href }}" class="rounded-full bg-emerald-400 px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-300">
+                            {{ hero.cta_primary.label }}
+                        </a>
+                    {% endif %}
+                    {% if hero.cta_secondary %}
+                        <a href="{{ hero.cta_secondary.href }}" class="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10">
+                            {{ hero.cta_secondary.label }}
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="grid gap-4 rounded-2xl border border-white/5 bg-white/5 p-5 text-sm text-slate-200 sm:grid-cols-3">
+                    <div>
+                        <p class="text-3xl font-black text-white break-words">Drag & Drop</p>
+                        <p class="text-slate-400">Tri instantané des cartes avec SortableJS.</p>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-black text-white break-words">Labels</p>
+                        <p class="text-slate-400">Etiquettes colorées et sous-tâches suivies.</p>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-black text-white break-words">Commentaires</p>
+                        <p class="text-slate-400">Collaboration asynchrone gourmande.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-3xl border border-white/5 bg-slate-900/50 p-6 shadow-2xl shadow-black/40">
+                <p class="text-sm uppercase tracking-wide text-slate-400">Aperçu</p>
+                <div class="mt-4 flex gap-4 overflow-x-auto rounded-2xl bg-slate-900/60 p-4 text-sm">
+                    {% for column in preview_columns %}
+                        <div class="w-56 flex-shrink-0 rounded-2xl bg-slate-800/60 p-3">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ column }}</p>
+                            <div class="mt-3 space-y-3">
+                                {% for card in preview_cards %}
+                                    <div class="rounded-2xl border border-white/5 bg-slate-900/50 p-3 text-white">
+                                        <p class="text-sm font-semibold">Carte {{ forloop.parentloop.counter }}.{{ forloop.counter }}</p>
+                                        <p class="text-xs text-slate-400">Label · Sous-tâche</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Pour aller plus loin</p>
+                    <h2 class="text-2xl font-bold text-white">Fonctionnalités clés</h2>
+                </div>
+                <a href="{% url 'boards:board_list' %}" class="text-sm font-semibold text-emerald-300 hover:text-emerald-200">Voir les tableaux →</a>
+            </div>
+            <div class="grid gap-4 md:grid-cols-3">
+                <article class="rounded-2xl border border-white/5 bg-white/5 p-5">
+                    <h3 class="text-lg font-semibold text-white">Modèles Tailwind</h3>
+                    <p class="mt-2 text-sm text-slate-300">UI responsive soutenue par shadcn-django pour un rendu premium.</p>
+                </article>
+                <article class="rounded-2xl border border-white/5 bg-white/5 p-5">
+                    <h3 class="text-lg font-semibold text-white">API Django</h3>
+                    <p class="mt-2 text-sm text-slate-300">Endpoints prêts pour HTMX ou clients JS.</p>
+                </article>
+                <article class="rounded-2xl border border-white/5 bg-white/5 p-5">
+                    <h3 class="text-lg font-semibold text-white">Collaboratif</h3>
+                    <p class="mt-2 text-sm text-slate-300">Commentaires datés et sous-tâches synchronisées.</p>
+                </article>
+            </div>
+        </section>
+
+        {% if boards %}
+        <section class="space-y-6" id="create-board">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Vos espaces</p>
+                    <h2 class="text-2xl font-bold text-white">Derniers tableaux</h2>
+                </div>
+                <a href="{% url 'boards:board_list' %}" class="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10">Tous les tableaux</a>
+            </div>
+            <div class="grid gap-5 md:grid-cols-2">
+                {% for board in boards %}
+                    <article class="rounded-3xl border border-white/10 bg-white/5 p-5">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-slate-400">Tableau</p>
+                                <h3 class="text-xl font-semibold text-white">{{ board.title }}</h3>
+                            </div>
+                            <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">{{ board.created_at|date:"d/m/Y" }}</span>
+                        </div>
+                        <dl class="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-300">
+                            <div class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                                <dt class="text-[10px] uppercase tracking-wide">Listes</dt>
+                                <dd class="text-lg font-semibold text-white">{{ board.list_count }}</dd>
+                            </div>
+                            <div class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                                <dt class="text-[10px] uppercase tracking-wide">Cartes</dt>
+                                <dd class="text-lg font-semibold text-white">{{ board.card_count }}</dd>
+                            </div>
+                        </dl>
+                        <div class="mt-4 flex items-center justify-between">
+                            <p class="text-xs text-slate-400">Propriétaire · {{ board.owner }}</p>
+                            <a href="{% url 'boards:board_detail' board.id %}" class="rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-300">Ouvrir</a>
+                        </div>
+                    </article>
+                {% empty %}
+                    <p class="text-sm text-slate-300">Commence par créer un tableau pour ton équipe.</p>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <footer class="mt-12 border-t border-white/5 bg-slate-950/80 py-6 text-center text-sm text-slate-500">
+        Construit avec Django · Tailwind · SortableJS — Inspiré de Trello pour Epitech
+    </footer>
+</body>
+</html>
+
