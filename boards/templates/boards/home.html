@@ -6,6 +6,8 @@
     <title>EpiTrello - Organise tout</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'boards/theme.css' %}">
+    <script src="{% static 'boards/app.js' %}" defer></script>
 </head>
 <body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-white">
     <header class="px-6 py-4">
@@ -21,11 +23,11 @@
             </div>
             <nav class="flex items-center gap-4 text-sm">
                 {% if user.is_authenticated %}
-                    <a href="{% url 'boards:board_list' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20">Mes tableaux</a>
-                    <a href="{% url 'admin:logout' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10">Déconnexion</a>
+                    <a href="{% url 'boards:board_list' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20 btn-focus-visible">Mes tableaux</a>
+                    <a href="{% url 'admin:logout' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10 btn-focus-visible">Déconnexion</a>
                 {% else %}
-                    <a href="{% url 'admin:login' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20">Connexion</a>
-                    <a href="{% url 'admin:login' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10">S'inscrire</a>
+                    <a href="{% url 'admin:login' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20 btn-focus-visible">Connexion</a>
+                    <a href="{% url 'admin:login' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10 btn-focus-visible">S'inscrire</a>
                 {% endif %}
             </nav>
         </div>
@@ -49,39 +51,58 @@
                         </a>
                     {% endif %}
                 </div>
-                <div class="grid gap-4 rounded-2xl border border-white/5 bg-white/5 p-5 text-sm text-slate-200 sm:grid-cols-3">
-                    <div>
-                        <p class="text-3xl font-black text-white break-words">Drag & Drop</p>
-                        <p class="text-slate-400">Tri instantané des cartes avec SortableJS.</p>
+                <div class="space-y-4 rounded-2xl border border-white/5 bg-white/5 p-5 text-sm text-slate-200">
+                    <div class="flex items-center justify-between">
+                        <p class="text-xs uppercase tracking-[0.5em] text-slate-400">Parcours express</p>
+                        <div class="flex gap-2" data-onboarding>
+                            <button type="button" data-prev class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10 btn-focus-visible" aria-label="Slide précédente">←</button>
+                            <button type="button" data-next class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10 btn-focus-visible" aria-label="Slide suivante">→</button>
+                            <div class="sr-only" data-slide></div>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-3xl font-black text-white break-words">Labels</p>
-                        <p class="text-slate-400">Etiquettes colorées et sous-tâches suivies.</p>
-                    </div>
-                    <div>
-                        <p class="text-3xl font-black text-white break-words">Commentaires</p>
-                        <p class="text-slate-400">Collaboration asynchrone gourmande.</p>
+                    <div class="relative overflow-hidden">
+                        <div class="space-y-4" data-onboarding>
+                            <article data-slide class="rounded-2xl bg-slate-900/60 p-4 opacity-100 transition-all duration-300">
+                                <p class="text-xs uppercase tracking-wide text-emerald-300">Étape 1</p>
+                                <h3 class="text-xl font-semibold text-white">Crée ton premier tableau</h3>
+                                <p class="text-sm text-slate-300">Choisis un template, ajoute des listes et planifie ton sprint en quelques secondes.</p>
+                            </article>
+                            <article data-slide class="rounded-2xl bg-slate-900/60 p-4 opacity-0 transition-all duration-300">
+                                <p class="text-xs uppercase tracking-wide text-emerald-300">Étape 2</p>
+                                <h3 class="text-xl font-semibold text-white">Glisse les cartes librement</h3>
+                                <p class="text-sm text-slate-300">Repriorise les tâches, assigne des membres et ajoute des dates limites.</p>
+                            </article>
+                            <article data-slide class="rounded-2xl bg-slate-900/60 p-4 opacity-0 transition-all duration-300">
+                                <p class="text-xs uppercase tracking-wide text-emerald-300">Étape 3</p>
+                                <h3 class="text-xl font-semibold text-white">Collabore sans friction</h3>
+                                <p class="text-sm text-slate-300">Commentaires, checklists et labels pour rester aligné avec ton équipe.</p>
+                            </article>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="rounded-3xl border border-white/5 bg-slate-900/50 p-6 shadow-2xl shadow-black/40">
                 <p class="text-sm uppercase tracking-wide text-slate-400">Aperçu</p>
-                <div class="mt-4 flex gap-4 overflow-x-auto rounded-2xl bg-slate-900/60 p-4 text-sm">
-                    {% for column in preview_columns %}
-                        <div class="w-56 flex-shrink-0 rounded-2xl bg-slate-800/60 p-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ column }}</p>
-                            <div class="mt-3 space-y-3">
-                                {% for card in preview_cards %}
-                                    <div class="rounded-2xl border border-white/5 bg-slate-900/50 p-3 text-white">
-                                        <p class="text-sm font-semibold">Carte {{ forloop.parentloop.counter }}.{{ forloop.counter }}</p>
-                                        <p class="text-xs text-slate-400">Label · Sous-tâche</p>
-                                    </div>
-                                {% endfor %}
-                            </div>
+                <div class="mt-4 rounded-2xl bg-slate-900/60 text-sm overflow-hidden">
+                    <div class="-mb-4 overflow-x-auto pb-4">
+                        <div class="flex gap-4 p-4">
+                         {% for column in preview_columns %}
+                             <div class="w-56 flex-shrink-0 rounded-2xl bg-slate-800/60 p-3">
+                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ column }}</p>
+                                 <div class="mt-3 space-y-3">
+                                     {% for card in preview_cards %}
+                                         <div class="rounded-2xl border border-white/5 bg-slate-900/50 p-3 text-white">
+                                             <p class="text-sm font-semibold">Carte {{ forloop.parentloop.counter }}.{{ forloop.counter }}</p>
+                                             <p class="text-xs text-slate-400">Label · Sous-tâche</p>
+                                         </div>
+                                     {% endfor %}
+                                 </div>
+                             </div>
+                        {% endfor %}
                         </div>
-                    {% endfor %}
-                </div>
-            </div>
+                     </div>
+                 </div>
+             </div>
         </section>
 
         <section class="space-y-6">
@@ -115,7 +136,7 @@
                     <p class="text-xs uppercase tracking-wide text-slate-500">Vos espaces</p>
                     <h2 class="text-2xl font-bold text-white">Derniers tableaux</h2>
                 </div>
-                <a href="{% url 'boards:board_list' %}" class="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10">Tous les tableaux</a>
+                <a href="{% url 'boards:board_list' %}" class="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 btn-focus-visible">Tous les tableaux</a>
             </div>
             <div class="grid gap-5 md:grid-cols-2">
                 {% for board in boards %}
@@ -143,7 +164,12 @@
                         </div>
                     </article>
                 {% empty %}
-                    <p class="text-sm text-slate-300">Commence par créer un tableau pour ton équipe.</p>
+                    <div class="empty-state text-slate-300">
+                        <p class="empty-state-icon mb-3">🗂️</p>
+                        <h3 class="text-lg font-semibold text-white">Aucun tableau pour l’instant</h3>
+                        <p class="mt-2 text-sm text-slate-400">Déploie ton premier espace pour visualiser tes flux comme sur Trello.</p>
+                        <a href="{% url 'boards:board_list' %}" class="mt-4 inline-flex rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-300 btn-focus-visible">Créer un tableau</a>
+                    </div>
                 {% endfor %}
             </div>
         </section>

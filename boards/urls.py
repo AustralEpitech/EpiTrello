@@ -17,6 +17,16 @@ urlpatterns = [
         name="create_card",
     ),
     path(
+        "board/<int:board_id>/lists/reorder",
+        views.reorder_lists,
+        name="reorder_lists",
+    ),
+    path(
+        "board/<int:board_id>/lists/<int:list_id>/delete",
+        views.delete_list,
+        name="delete_list",
+    ),
+    path(
         "board/<int:board_id>/reorder",
         views.reorder_cards,
         name="reorder_cards",

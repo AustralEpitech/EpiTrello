@@ -53,7 +53,10 @@ def board_list(request):
         "owner_filter": owner_filter or "all",
         "sort": sort,
     }
-    return render(request, "boards/board_list.html", context)
+    template_name = "boards/board_list.html"
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        template_name = "boards/partials/board_grid.html"
+    return render(request, template_name, context)
 
 
 def board_detail(request, board_id):
@@ -72,8 +75,13 @@ def board_detail(request, board_id):
         pk=board_id,
     )
 
+    raw_query = (request.GET.get("q") or "").strip()
+    query = raw_query.lower()
     for board_list in board.lists.all():
-        cards = list(board_list.cards.all())
+        cards_queryset = board_list.cards.all()
+        if query:
+            cards_queryset = cards_queryset.filter(title__icontains=query)
+        cards = list(cards_queryset)
         for card in cards:
             subtasks = list(card.subtasks.all())
             comments = list(card.comments.all())
@@ -82,7 +90,11 @@ def board_detail(request, board_id):
             card.comment_count = len(comments)
         board_list.cached_cards = cards
 
-    return render(request, "boards/board_detail.html", {"board": board})
+    context = {
+        "board": board,
+        "query": raw_query,
+    }
+    return render(request, "boards/board_detail.html", context)
 
 
 @require_POST
@@ -119,6 +131,22 @@ def create_card(request, board_id):
     )
     messages.success(request, "Carte créée avec succès.")
     return redirect("boards:board_detail", board_id=board.id)
+
+
+@require_POST
+def reorder_lists(request, board_id):
+    board = get_object_or_404(Board, pk=board_id)
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return HttpResponseBadRequest("Invalid JSON payload.")
+    order = payload.get("order")
+    if not isinstance(order, list):
+        return HttpResponseBadRequest("Invalid order format.")
+    with transaction.atomic():
+        for position, list_id in enumerate(order, start=1):
+            List.objects.filter(pk=list_id, board=board).update(position=position)
+    return JsonResponse({"status": "ok"})
 
 
 @require_POST
@@ -171,6 +199,15 @@ def delete_board(request, board_id):
     board.delete()
     messages.success(request, "Tableau supprimé.")
     return redirect("boards:board_list")
+
+
+@require_POST
+def delete_list(request, board_id, list_id):
+    board = get_object_or_404(Board, pk=board_id)
+    board_list = get_object_or_404(List, pk=list_id, board=board)
+    board_list.delete()
+    messages.success(request, "Liste supprimée.")
+    return redirect("boards:board_detail", board_id=board.id)
 
 
 def _get_payload(request):
