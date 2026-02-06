@@ -12,6 +12,13 @@
  </head>
 <body class="min-h-screen bg-slate-950 text-white">
     <div id="toast-stack" class="fixed inset-x-0 top-6 z-50 mx-auto flex max-w-md flex-col gap-3 px-4"></div>
+    
+    <div id="global-loader" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px] opacity-0 invisible">
+        <div class="flex flex-col items-center gap-3">
+            <div class="spinner"></div>
+            <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">Synchronisation...</p>
+        </div>
+    </div>
     <div class="flex min-h-screen flex-col">
         <header class="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur">
             <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4">
@@ -27,15 +34,86 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <a href="{% url 'boards:global_search' %}" class="rounded-full bg-white/10 p-2 text-white hover:bg-white/20 btn-focus-visible" data-tooltip="Recherche globale">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </a>
                     <form method="get" action="" class="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-white">
                         <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" name="q" placeholder="Rechercher" class="bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none" value="{{ request.GET.q }}">
                     </form>
-                    <div class="flex gap-2">
-                        <button class="tooltip rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Filtrer par labels" onclick="setFilter('labels')">Labels</button>
-                        <button class="tooltip rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Filtrer par membres" onclick="setFilter('members')">Membres</button>
-                        <button class="tooltip rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Filtrer par dates" onclick="setFilter('dates')">Dates</button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="card-sort" class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white focus:border-emerald-400 focus:outline-none" onchange="applySort(this.value)">
+                            <option value="position" class="text-slate-900" {% if current_sort == 'position' %}selected{% endif %}>Tri manuel</option>
+                            <option value="title" class="text-slate-900" {% if current_sort == 'title' %}selected{% endif %}>Titre (A-Z)</option>
+                            <option value="due_date" class="text-slate-900" {% if current_sort == 'due_date' %}selected{% endif %}>Date d'échéance</option>
+                            <option value="created_at" class="text-slate-900" {% if current_sort == 'created_at' %}selected{% endif %}>Plus récentes</option>
+                            <option value="label" class="text-slate-900" {% if current_sort == 'label' %}selected{% endif %}>Label (A-Z)</option>
+                        </select>
+                        <div class="flex gap-2">
+                            <div class="relative">
+                                <button id="filter-btn" class="tooltip rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Filtrer les cartes">Filtrer</button>
+                                <div id="filter-dropdown" class="absolute right-0 mt-2 w-64 rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/5 hidden z-50 text-slate-900">
+                                    <div class="space-y-4">
+                                        <div>
+                                            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Labels</p>
+                                            <div id="filter-labels-container" class="mt-2 flex flex-wrap gap-1">
+                                                {% for label in board_labels %}
+                                                    <button type="button" class="rounded-full px-2 py-1 text-[10px] font-semibold text-white filter-label-btn border-2 border-transparent transition" 
+                                                            style="background-color: {{ label.color }}" 
+                                                            data-filter-label="{{ label.id }}">
+                                                        {{ label.name }}
+                                                    </button>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Échéance</p>
+                                            <div class="mt-2 space-y-1">
+                                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-emerald-600">
+                                                    <input type="checkbox" name="filter-date" value="overdue" class="rounded border-slate-300"> En retard
+                                                </label>
+                                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-emerald-600">
+                                                    <input type="checkbox" name="filter-date" value="today" class="rounded border-slate-300"> Aujourd'hui
+                                                </label>
+                                                <label class="flex items-center gap-2 text-xs cursor-pointer hover:text-emerald-600">
+                                                    <input type="checkbox" name="filter-date" value="nodate" class="rounded border-slate-300"> Sans date
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button id="clear-filters" class="w-full rounded-lg bg-slate-100 py-2 text-[10px] font-bold uppercase text-slate-500 hover:bg-slate-200 hover:text-slate-700">Effacer les filtres</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if board.owner == user %}
+                            <a href="{% url 'boards:manage_members' board.id %}" class="tooltip rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Gérer les membres">Membres</a>
+                            <div class="relative" id="export-menu">
+                                <button id="export-btn" class="tooltip rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Exporter le tableau">Exporter</button>
+                                <div id="export-dropdown" class="absolute right-0 mt-2 w-48 rounded-2xl bg-white p-2 shadow-2xl ring-1 ring-black/5 hidden z-50 text-slate-900">
+                                    <a href="{% url 'boards:export_board' board.id 'json' %}" class="block w-full text-left rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Exporter en JSON</a>
+                                    <a href="{% url 'boards:export_board' board.id 'csv' %}" class="block w-full text-left rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Exporter en CSV</a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
+                    {% if board.owner == user %}
+                    <form method="post" action="{% url 'boards:invite_member' board.id %}" class="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                        {% csrf_token %}
+                        <input type="text" name="username" placeholder="Inviter (pseudo)" class="bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none">
+                        <button type="submit" class="rounded-full bg-emerald-400 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-300" data-tooltip="Inviter un membre">Inviter</button>
+                    </form>
+                    {% endif %}
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'boards:notifications_list' %}" class="relative rounded-full bg-white/10 p-2 text-white hover:bg-white/20 btn-focus-visible" data-tooltip="Mes notifications">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-slate-900">{{ unread_notifications_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'boards:profile' %}" class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400 font-bold text-slate-900 hover:bg-emerald-300 btn-focus-visible shadow-lg" data-tooltip="Mon Profil">
+                        {{ user.username|slice:":1"|upper }}
+                    </a>
+                    {% endif %}
                 </div>
             </div>
          </header>
@@ -53,7 +131,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <button type="button" class="tooltip rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Ajouter une carte" onclick="toggleCardForm('{{ list.id }}')">+</button>
-                                <form method="post" action="{% url 'boards:delete_list' board.id list.id %}" onsubmit="return confirm('Supprimer cette liste ?');">
+                                <form method="post" action="{% url 'boards:delete_list' board.id list.id %}" onsubmit="return window.handleConfirmSubmit(event, 'Supprimer cette liste ?', this);">
                                     {% csrf_token %}
                                     <button type="submit" class="tooltip rounded-full border border-red-300/40 px-2 py-1 text-[10px] font-semibold text-red-200 hover:bg-red-500/10 btn-focus-visible" data-tooltip="Supprimer la liste">✕</button>
                                 </form>
@@ -61,28 +139,45 @@
                         </div>
                         <div class="card-container mt-4 flex flex-col gap-3" data-list-id="{{ list.id }}">
                             {% for card in list.cached_cards %}
-                                <article class="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-white shadow transition hover:-translate-y-1" data-card-id="{{ card.id }}">
+                                <article class="group rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-white shadow transition hover:-translate-y-1" 
+                                         data-card-id="{{ card.id }}"
+                                         data-card-labels="{% for l in card.labels.all %}{{ l.id }},{% endfor %}"
+                                         data-card-due="{{ card.due_date|date:'Y-m-d' }}"
+                                         data-card-overdue="{% if card.due_date and card.due_date < now %}1{% else %}0{% endif %}"
+                                >
                                      <div class="flex items-start justify-between">
                                          <h3 class="text-sm font-semibold leading-tight">{{ card.title }}</h3>
-                                         {% if card.due_date %}
-                                             <span class="text-xs font-semibold text-emerald-300">📅 {{ card.due_date|date:"d/m" }}</span>
-                                         {% endif %}
+                                         <div class="flex items-center gap-2">
+                                             <div class="flex -space-x-1.5 overflow-hidden" data-card-assignees="{{ card.id }}">
+                                                 {% for u in card.assigned_to.all %}
+                                                     <div class="inline-block h-5 w-5 rounded-full border border-slate-900 bg-emerald-400 text-[9px] font-bold text-slate-900 flex items-center justify-center" title="{{ u.username }}">
+                                                         {{ u.username|slice:":1"|upper }}
+                                                     </div>
+                                                 {% endfor %}
+                                             </div>
+                                             <span data-card-due-display="" class="text-xs font-semibold {% if card.due_date and card.due_date < now %}text-red-400{% else %}text-emerald-300{% endif %} {% if not card.due_date %}hidden{% endif %}">
+                                                 {% if card.due_date %}📅 {{ card.due_date|date:"d/m" }}{% endif %}
+                                             </span>
+                                             <button type="button" class="tooltip rounded-full p-1 text-slate-500 hover:bg-white/10 hover:text-red-400 transition opacity-0 group-hover:opacity-100 focus:opacity-100" data-tooltip="Archiver" onclick="event.stopPropagation(); window.quickDeleteCard('{{ card.id }}')">
+                                                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                             </button>
+                                         </div>
                                      </div>
                                      {% if card.labels.all %}
-                                         <div class="mt-3 flex flex-wrap gap-2">
+                                         <div data-card-labels="" class="mt-3 flex flex-wrap gap-2">
                                              {% for label in card.labels.all %}
-                                                 <span class="inline-flex items-center rounded-full px-2 py-1 text-2xs font-semibold text-white" style="background-color: {{ label.color }}">
+                                                 <span class="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold text-white" style="background-color: {{ label.color }}">
                                                      {{ label.name }}
                                                  </span>
                                              {% endfor %}
                                          </div>
+                                     {% else %}
+                                         <div data-card-labels="" class="mt-3 flex flex-wrap gap-2 hidden"></div>
                                      {% endif %}
-                                     {% if card.description %}
-                                         <p class="mt-2 text-sm text-slate-300 line-clamp-3">{{ card.description }}</p>
-                                     {% endif %}
+                                     <p data-card-description="" class="mt-2 text-sm text-slate-300 line-clamp-3 {% if not card.description %}hidden{% endif %}">{{ card.description }}</p>
                                      <div class="mt-4 flex items-center justify-between text-xs text-slate-400">
-                                         <span>✅ {{ card.completed_subtasks }}/{{ card.total_subtasks }}</span>
-                                         <span>💬 {{ card.comment_count }}</span>
+                                         <span data-card-stats-subtasks="">✅ {{ card.completed_subtasks }}/{{ card.total_subtasks }}</span>
+                                         <span data-card-stats-comments="">💬 {{ card.comment_count }}</span>
                                       </div>
                                   </article>
                              {% endfor %}
@@ -104,7 +199,7 @@
                          </div>
                     </div>
                 {% endfor %}
-                <div class="flex w-64 flex-shrink-0 flex-col gap-2 rounded-3xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white">
+                <div class="flex w-64 flex-shrink-0 flex-col gap-2 rounded-3xl border border-dashed border-white/20 bg-white/5 p-4 text-sm text-white ignore-drag">
                     <p class="font-semibold">Ajouter une liste</p>
                     <form method="post" action="{% url 'boards:create_list' board.id %}" class="space-y-2" data-card-form="global">
                         {% csrf_token %}
@@ -116,16 +211,21 @@
         </main>
     </div>
 
-    <div id="card-modal" class="fixed inset-0 z-40 hidden items-start justify-center bg-slate-900/60 px-4 py-10 text-slate-900">
-        <div class="w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
+    <div id="card-modal" class="fixed inset-0 z-40 hidden overflow-y-auto bg-slate-900/60 px-4 py-6 text-slate-900 sm:py-10">
+        <div class="mx-auto w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
             <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                 <div>
                     <p class="text-xs uppercase tracking-wide text-slate-400">Carte</p>
                     <h2 id="modal-card-title" class="text-2xl font-semibold"></h2>
                 </div>
-                <button id="modal-close" class="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-50">
-                    ✕
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="card-delete-mobile" class="lg:hidden rounded-full p-2 text-red-500 hover:bg-red-50" data-tooltip="Archiver la carte">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+                    </button>
+                    <button id="modal-close" class="rounded-full border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-50" data-tooltip="Fermer la vue">
+                        ✕
+                    </button>
+                </div>
             </div>
             <div class="grid gap-6 px-6 py-6 lg:grid-cols-[2fr,1fr]">
                 <div class="space-y-6">
@@ -137,42 +237,52 @@
                         <input type="datetime-local" name="due_date" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
                         <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Description</label>
                         <textarea name="description" rows="4" class="no-resize no-focus-outline w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-emerald-400 focus:ring-0 focus:outline-none" placeholder="Ajoute des détails" style="resize:none;overflow:auto;"></textarea>
-                        <button class="c-button rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Sauvegarder</button>
+                        <button class="c-button rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white" data-tooltip="Enregistrer les modifications">Sauvegarder</button>
                     </form>
 
+                    <div id="checklists-container" class="space-y-6"></div>
+
                     <section>
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Sous-tâches</h3>
-                            <form id="subtask-create" class="flex gap-2 text-sm">
-                                <input name="title" class="rounded-md border border-slate-200 px-2 py-1" placeholder="Nouvelle sous-tâche">
-                                <button class="c-button rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">Ajouter</button>
-                            </form>
+                        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Membres assignés</h3>
+                        <div id="modal-assigned-members" class="mt-3 flex flex-wrap gap-2"></div>
+                        <div class="mt-4 space-y-2">
+                             <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Assigner un membre</p>
+                             <div id="members-list-toggle" class="flex flex-wrap gap-2"></div>
                         </div>
-                        <ul id="subtasks-list" class="mt-3 space-y-2 text-sm"></ul>
                     </section>
 
                     <section>
                         <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Commentaires</h3>
                         <form id="comment-create" class="mt-3 flex gap-2 text-sm">
                             <textarea name="content" rows="2" class="no-resize flex-1 rounded-md border border-slate-200 px-3 py-2" placeholder="Écrire un commentaire..."></textarea>
-                            <button class="c-button rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Envoyer</button>
+                            <button class="c-button rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white" data-tooltip="Publier le commentaire">Envoyer</button>
                         </form>
                         <ul id="comments-list" class="mt-4 space-y-3 text-sm"></ul>
                     </section>
                 </div>
 
-                <aside class="space-y-6">
+                <aside class="order-first space-y-6 lg:order-last">
                     <section>
                         <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Labels</h3>
                         <div id="labels-pills" class="mt-3 flex flex-wrap gap-2"></div>
                         <form id="label-create" class="mt-4 space-y-2 text-sm">
                             <input type="text" name="name" placeholder="Nom du label" class="w-full rounded-md border border-slate-200 px-3 py-2 focus:border-blue-500 focus:outline-none">
                             <input type="color" name="color" value="#3b82f6" class="h-10 w-full rounded-md border border-slate-200">
-                            <button class="c-button w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Créer un label</button>
+                            <button class="c-button w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white" data-tooltip="Créer une nouvelle étiquette">Créer un label</button>
                         </form>
                     </section>
+                    <section class="space-y-3">
+                        <button id="btn-add-checklist" class="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">☑ Checklist</button>
+                        <div id="checklist-form" class="hidden space-y-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                            <input type="text" id="checklist-title-input" placeholder="Titre de la checklist" class="w-full rounded-md border border-slate-200 px-2 py-1 text-sm focus:border-emerald-400 focus:outline-none">
+                            <div class="flex gap-2">
+                                <button id="checklist-create-confirm" class="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">Ajouter</button>
+                                <button id="checklist-create-cancel" class="text-xs text-slate-500">Annuler</button>
+                            </div>
+                        </div>
+                    </section>
                     <section class="rounded-lg border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600">
-                        <button id="card-delete" class="mt-4 w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100">Archiver la carte</button>
+                        <button id="card-delete" class="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100" data-tooltip="Archiver cette carte">Archiver la carte</button>
                     </section>
                 </aside>
             </div>
@@ -180,17 +290,8 @@
     </div>
 
     <script>
-        let activeFilter = null
         const toastStack = document.getElementById('toast-stack')
-        function setFilter(type) {
-            activeFilter = type
-            pushToast(`Filtre ${type} activé`, 'info')
-        }
-        function toggleListForm(id) {
-            const form = document.querySelector(`[data-card-form="${id}"]`)
-            if (form) form.classList.toggle('hidden')
-        }
-        function openQuickCard() {}
+
         function pushToast(message, variant = 'success') {
              const tone = variant.includes('error') ? 'red' : 'emerald'
              const toast = document.createElement('div')
@@ -202,16 +303,32 @@
                  toast.addEventListener('transitionend', () => toast.remove())
              }, 2600)
          }
+        window.pushToast = pushToast
+
+        let activeFilter = null
+
+        {% if messages %}
+            {% for message in messages %}
+                window.pushToast("{{ message|escapejs }}", "{{ message.tags }}")
+            {% endfor %}
+        {% endif %}
+        function applySort(value) {
+            const url = new URL(window.location.href)
+            url.searchParams.set('sort', value)
+            window.location.href = url.toString()
+        }
+        function setFilter(type) {
+            activeFilter = type
+            pushToast(`Le filtre '${type}' a été activé.`, 'info')
+        }
+        function toggleListForm(id) {
+            const form = document.querySelector(`[data-card-form="${id}"]`)
+            if (form) form.classList.toggle('hidden')
+        }
+        function openQuickCard() {}
         const highlightResults = (needle) => {
              const query = (needle || '').trim().toLowerCase()
-             document.querySelectorAll('[data-card-id]').forEach(card => {
-                 const titleEl = card.querySelector('h3')
-                 const title = titleEl ? titleEl.textContent.toLowerCase() : ''
-                 const match = query && title.includes(query)
-                 card.classList.toggle('ring-2', Boolean(match))
-                 card.classList.toggle('ring-emerald-400', Boolean(match))
-                 card.style.opacity = query && !match ? 0.3 : 1
-             })
+             applyFilters()
          }
 
         const refreshEmptyState = (target) => {
@@ -222,6 +339,113 @@
             const hasCards = container.querySelectorAll('[data-card-id]').length > 0
             placeholder.classList.toggle('hidden', hasCards)
         }
+
+        const filterBtn = document.getElementById('filter-btn')
+        const filterDropdown = document.getElementById('filter-dropdown')
+        const filterLabels = document.querySelectorAll('[data-filter-label]')
+        const filterDates = document.querySelectorAll('input[name="filter-date"]')
+        const clearFiltersBtn = document.getElementById('clear-filters')
+
+        let activeFilters = {
+            labels: new Set(),
+            dates: new Set()
+        }
+
+        filterBtn.addEventListener('click', (e) => {
+            e.stopPropagation()
+            filterDropdown.classList.toggle('hidden')
+        })
+
+        document.addEventListener('click', (e) => {
+            if (!filterDropdown.contains(e.target) && e.target !== filterBtn) {
+                filterDropdown.classList.add('hidden')
+            }
+        })
+
+        filterLabels.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const labelId = btn.dataset.filterLabel
+                if (activeFilters.labels.has(labelId)) {
+                    activeFilters.labels.delete(labelId)
+                    btn.classList.remove('border-emerald-400', 'ring-2', 'ring-emerald-400')
+                    btn.classList.add('border-transparent')
+                } else {
+                    activeFilters.labels.add(labelId)
+                    btn.classList.remove('border-transparent')
+                    btn.classList.add('border-emerald-400', 'ring-2', 'ring-emerald-400')
+                }
+                applyFilters()
+            })
+        })
+
+        filterDates.forEach(input => {
+            input.addEventListener('change', () => {
+                const dateVal = input.value
+                if (input.checked) activeFilters.dates.add(dateVal)
+                else activeFilters.dates.delete(dateVal)
+                applyFilters()
+            })
+        })
+
+        clearFiltersBtn.addEventListener('click', () => {
+            activeFilters.labels.clear()
+            activeFilters.dates.clear()
+            filterLabels.forEach(btn => {
+                btn.classList.remove('border-emerald-400', 'ring-2', 'ring-emerald-400')
+                btn.classList.add('border-transparent')
+            })
+            filterDates.forEach(input => input.checked = false)
+            if (searchInput) searchInput.value = ''
+            applyFilters()
+        })
+
+        function applyFilters() {
+            const query = (searchInput?.value || '').trim().toLowerCase()
+            const today = new Date().toISOString().split('T')[0]
+
+            document.querySelectorAll('article[data-card-id]').forEach(card => {
+                const cardLabels = card.dataset.cardLabels.split(',').filter(Boolean)
+                const cardDue = card.dataset.cardDue
+                const isOverdue = card.dataset.cardOverdue === '1'
+                const title = card.querySelector('h3')?.textContent.toLowerCase() || ''
+
+                let visible = true
+
+                // Filter by search query
+                if (query && !title.includes(query)) visible = false
+
+                // Filter by labels (must have ALL selected labels? Or ANY?)
+                // Trello filter by ANY selected label usually.
+                if (activeFilters.labels.size > 0) {
+                    const hasLabel = [...activeFilters.labels].some(l => cardLabels.includes(l))
+                    if (!hasLabel) visible = false
+                }
+
+                // Filter by dates
+                if (activeFilters.dates.size > 0) {
+                    let dateMatch = false
+                    if (activeFilters.dates.has('overdue') && isOverdue) dateMatch = true
+                    if (activeFilters.dates.has('today') && cardDue === today) dateMatch = true
+                    if (activeFilters.dates.has('nodate') && !cardDue) dateMatch = true
+                    if (!dateMatch) visible = false
+                }
+
+                card.classList.toggle('hidden', !visible)
+                
+                // Si on utilise la recherche, on garde l'effet de highlight s'il est visible
+                if (query && visible) {
+                    card.classList.add('ring-2', 'ring-emerald-400')
+                } else {
+                    card.classList.remove('ring-2', 'ring-emerald-400')
+                }
+            })
+            
+            document.querySelectorAll('.card-container').forEach(refreshEmptyState)
+        }
+
+        const loader = document.getElementById('global-loader')
+        const showLoader = () => { loader.classList.remove('opacity-0', 'invisible'); loader.classList.add('opacity-100', 'visible') }
+        const hideLoader = () => { loader.classList.add('opacity-0', 'invisible'); loader.classList.remove('opacity-100', 'visible') }
 
          function toggleCardForm(listId) {
               const form = document.querySelector(`[data-card-form="${listId}"]`);
@@ -244,17 +468,14 @@
             if (event.target === modal) closeModal()
         })
 
-        const getCookie = (name) => {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-        }
-        const csrftoken = getCookie('csrftoken')
+        const csrftoken = "{{ csrf_token }}"
         const boardBaseUrl = "{% url 'boards:board_detail' board.id %}"
         const endpoints = {
             detail: (cardId) => `${boardBaseUrl}cards/${cardId}/`,
             update: (cardId) => `${boardBaseUrl}cards/${cardId}/update`,
             labelToggle: (cardId) => `${boardBaseUrl}cards/${cardId}/labels/toggle`,
+            checklistCreate: (cardId) => `${boardBaseUrl}cards/${cardId}/checklists/create`,
+            checklistDelete: (cardId, checklistId) => `${boardBaseUrl}cards/${cardId}/checklists/${checklistId}/delete`,
             subtaskCreate: (cardId) => `${boardBaseUrl}cards/${cardId}/subtasks/create`,
             subtaskToggle: (cardId, subtaskId) => `${boardBaseUrl}cards/${cardId}/subtasks/${subtaskId}/toggle`,
             subtaskDelete: (cardId, subtaskId) => `${boardBaseUrl}cards/${cardId}/subtasks/${subtaskId}/delete`,
@@ -262,6 +483,7 @@
             labelCreate: (cardId) => `${boardBaseUrl}cards/${cardId}/labels/create`,
             labelDelete: (cardId, labelId) => `${boardBaseUrl}cards/${cardId}/labels/${labelId}/delete`,
             cardDelete: (cardId) => `${boardBaseUrl}cards/${cardId}/delete`,
+            assign: (cardId) => `${boardBaseUrl}cards/${cardId}/assign`,
         }
 
         const dom = {
@@ -269,150 +491,368 @@
             mainForm: document.getElementById('card-main-form'),
             dueDate: document.querySelector('#card-main-form input[name="due_date"]'),
             description: document.querySelector('#card-main-form textarea[name="description"]'),
-            subtasks: document.getElementById('subtasks-list'),
-            subtaskForm: document.getElementById('subtask-create'),
+            checklists: document.getElementById('checklists-container'),
+            btnAddChecklist: document.getElementById('btn-add-checklist'),
+            checklistForm: document.getElementById('checklist-form'),
+            checklistTitleInput: document.getElementById('checklist-title-input'),
+            checklistCreateConfirm: document.getElementById('checklist-create-confirm'),
+            checklistCreateCancel: document.getElementById('checklist-create-cancel'),
             comments: document.getElementById('comments-list'),
             commentForm: document.getElementById('comment-create'),
             labels: document.getElementById('labels-pills'),
             labelForm: document.getElementById('label-create'),
             deleteButton: document.getElementById('card-delete'),
+            deleteButtonMobile: document.getElementById('card-delete-mobile'),
+            assignedMembers: document.getElementById('modal-assigned-members'),
+            membersToggle: document.getElementById('members-list-toggle'),
         }
 
-        const renderCard = (card) => {
-            dom.title.textContent = card.title
-            dom.mainForm.title.value = card.title
-            dom.mainForm.description.value = card.description
-            dom.mainForm.due_date.value = card.due_date_local || ''
-            dom.mainForm.dataset.cardId = card.id
-            dom.subtaskForm.dataset.cardId = card.id
-            dom.commentForm.dataset.cardId = card.id
-            dom.labelForm.dataset.cardId = card.id
-            dom.deleteButton.dataset.cardId = card.id
+        const createCardElement = (card) => {
+            const article = document.createElement('article')
+            article.className = 'group rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-white shadow transition hover:-translate-y-1'
+            article.dataset.cardId = card.id
+            
+            article.innerHTML = `
+                <div class="flex items-start justify-between">
+                    <h3 class="text-sm font-semibold leading-tight"></h3>
+                    <div class="flex items-center gap-2">
+                        <div class="flex -space-x-1.5 overflow-hidden" data-card-assignees="${card.id}"></div>
+                        <span data-card-due-display="" class="text-xs font-semibold text-emerald-300 hidden"></span>
+                        <button type="button" class="tooltip rounded-full p-1 text-slate-500 hover:bg-white/10 hover:text-red-400 transition opacity-0 group-hover:opacity-100 focus:opacity-100" data-tooltip="Archiver" onclick="event.stopPropagation(); window.quickDeleteCard('${card.id}')">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div data-card-labels="" class="mt-3 flex flex-wrap gap-2 hidden"></div>
+                <p data-card-description="" class="mt-2 text-sm text-slate-300 line-clamp-3 hidden"></p>
+                <div class="mt-4 flex items-center justify-between text-xs text-slate-400">
+                    <span data-card-stats-subtasks="">✅ 0/0</span>
+                    <span data-card-stats-comments="">💬 0</span>
+                </div>
+            `
+            return article
+        }
 
-            const preview = document.querySelector(`[data-card-id="${card.id}"]`)
-            if (preview) {
-                const header = preview.querySelector('.flex.items-start')
-                let dueEl = preview.querySelector('[data-card-due]')
-                if (!dueEl) {
-                    dueEl = document.createElement('span')
-                    dueEl.dataset.cardDue = ''
-                    dueEl.className = 'text-xs text-slate-500'
-                    header.appendChild(dueEl)
-                }
-                if (card.due_date_display) {
-                    dueEl.textContent = `📅 ${card.due_date_display}`
-                    dueEl.classList.remove('hidden')
-                } else {
-                    dueEl.classList.add('hidden')
-                }
-                let labelsWrapper = preview.querySelector('[data-card-labels]')
-                if (!labelsWrapper) {
-                    labelsWrapper = document.createElement('div')
-                    labelsWrapper.dataset.cardLabels = ''
-                    labelsWrapper.className = 'mt-3 flex flex-wrap gap-2'
-                    const anchor = preview.querySelector('.mt-4')
-                    preview.insertBefore(labelsWrapper, anchor)
-                }
-                labelsWrapper.innerHTML = ''
-                if (!card.labels.length) {
-                    labelsWrapper.classList.add('hidden')
-                } else {
-                    labelsWrapper.classList.remove('hidden')
-                    card.labels.forEach(label => {
-                        const span = document.createElement('span')
-                        span.className = 'inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold text-white'
-                        span.style.backgroundColor = label.color
-                        span.textContent = label.name
-                        labelsWrapper.appendChild(span)
+        const renderCard = (card, openModal = false) => {
+            // Mise à jour du modal SEULEMENT si c'est la carte actuellement affichée ou si on demande l'ouverture
+            const currentModalCardId = dom.mainForm.dataset.cardId
+            const isCurrent = currentModalCardId === String(card.id)
+
+            if (isCurrent || openModal) {
+                dom.title.textContent = card.title
+                dom.mainForm.title.value = card.title
+                dom.mainForm.description.value = card.description
+                dom.mainForm.due_date.value = card.due_date_local || ''
+                dom.mainForm.dataset.cardId = card.id
+                dom.subtaskForm.dataset.cardId = card.id
+                dom.commentForm.dataset.cardId = card.id
+                dom.labelForm.dataset.cardId = card.id
+                dom.deleteButton.dataset.cardId = card.id
+                dom.deleteButtonMobile.dataset.cardId = card.id
+
+                dom.assignedMembers.innerHTML = ''
+                card.assigned_users.forEach(user => {
+                    const avatar = document.createElement('div')
+                    avatar.className = 'flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-xs font-bold text-slate-900'
+                    avatar.textContent = user.initial
+                    avatar.title = user.username
+                    dom.assignedMembers.appendChild(avatar)
+                })
+
+                dom.membersToggle.innerHTML = ''
+                card.members.forEach(member => {
+                    const btn = document.createElement('button')
+                    btn.type = 'button'
+                    btn.className = `flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition ${member.is_assigned ? 'bg-emerald-400 text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`
+                    btn.innerHTML = `<span class="h-4 w-4 rounded-full bg-white/30 flex items-center justify-center text-[10px]">${member.initial}</span> ${member.username}`
+                    btn.onclick = (e) => { e.stopPropagation(); toggleAssignment(card.id, member.id) }
+                    dom.membersToggle.appendChild(btn)
+                })
+
+                dom.labels.innerHTML = ''
+                card.available_labels.forEach(label => {
+                    const pill = document.createElement('div')
+                    pill.className = 'inline-flex items-center gap-2 rounded-full bg-slate-900/20 px-3 py-1 text-xs font-semibold text-slate-900'
+                    const swatch = document.createElement('span')
+                    swatch.className = 'inline-block h-3 w-3 rounded-full'
+                    swatch.style.backgroundColor = label.color
+                    const title = document.createElement('span')
+                    title.textContent = label.name
+                    const action = document.createElement('button')
+                    action.type = 'button'
+                    action.textContent = label.assigned ? 'Retirer' : 'Ajouter'
+                    action.className = 'text-xs font-semibold text-emerald-600'
+                    action.addEventListener('click', (event) => {
+                        event.stopPropagation()
+                        if (label.assigned) {
+                            fetch(endpoints.labelDelete(card.id, label.id), { method: 'POST', headers: { 'X-CSRFToken': csrftoken }})
+                                .then(res => res.json()).then(c => renderCard(c))
+                        } else {
+                            toggleLabel(card.id, label.id)
+                        }
                     })
+                    pill.appendChild(swatch)
+                    pill.appendChild(title)
+                    pill.appendChild(action)
+                    dom.labels.appendChild(pill)
+                })
+
+                // Checklists rendering
+                dom.checklists.innerHTML = ''
+                
+                // Group standalone subtasks into a virtual "Checklist" if any exist
+                if (card.subtasks && card.subtasks.length > 0) {
+                    renderChecklistSection({
+                        id: null,
+                        title: 'Éléments',
+                        items: card.subtasks,
+                        percent: intPercent(card.subtasks),
+                        is_standalone: true
+                    }, card.id)
+                }
+
+                card.checklists.forEach(cl => {
+                    renderChecklistSection(cl, card.id)
+                })
+
+                function intPercent(items) {
+                    const total = items.length
+                    if (total === 0) return 0
+                    const completed = items.filter(i => i.is_completed).length
+                    return Math.round((completed / total) * 100)
+                }
+
+                function renderChecklistSection(cl, cardId) {
+                    const section = document.createElement('section')
+                    section.className = 'space-y-3'
+                    section.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-500">☑</span>
+                                <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-700">${cl.title}</h3>
+                            </div>
+                            ${!cl.is_standalone ? `<button class="text-[10px] font-bold uppercase text-red-400 hover:text-red-600" onclick="deleteChecklist(${cardId}, ${cl.id})">Supprimer</button>` : ''}
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] font-bold text-slate-400">${cl.percent}%</span>
+                            <div class="h-2 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                                <div class="h-full bg-emerald-500 transition-all duration-500" style="width: ${cl.percent}%"></div>
+                            </div>
+                        </div>
+                        <ul class="space-y-1">
+                            ${cl.items.map(item => `
+                                <li class="group flex items-center justify-between rounded-lg border border-transparent px-2 py-1 hover:border-slate-100 hover:bg-slate-50">
+                                    <label class="flex flex-1 items-center gap-3 text-sm cursor-pointer">
+                                        <input type="checkbox" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" ${item.is_completed ? 'checked' : ''} onchange="toggleSubtask(${cardId}, ${item.id})">
+                                        <span class="${item.is_completed ? 'line-through text-slate-400' : 'text-slate-700'}">${item.title}</span>
+                                    </label>
+                                    <button class="opacity-0 group-hover:opacity-100 text-xs text-slate-400 hover:text-red-500 transition" onclick="deleteSubtask(${cardId}, ${item.id})">✕</button>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <div class="mt-2 pl-8">
+                            ${!cl.is_standalone ? `
+                            <button class="text-xs font-semibold text-slate-500 hover:text-slate-800" onclick="showItemForm(${cl.id})">+ Ajouter un élément</button>
+                            <div id="item-form-${cl.id}" class="hidden mt-2 space-y-2">
+                                <input type="text" class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none" placeholder="Nom de l'élément">
+                                <div class="flex gap-2">
+                                    <button onclick="addChecklistItem(${cardId}, ${cl.id})" class="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">Ajouter</button>
+                                    <button onclick="hideItemForm(${cl.id})" class="text-xs text-slate-500">Annuler</button>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    `
+                    dom.checklists.appendChild(section)
+                }
+
+                dom.comments.innerHTML = ''
+                card.comments.forEach(comment => {
+                    const li = document.createElement('li')
+                    li.className = 'rounded-lg border border-slate-200 px-3 py-2'
+                    li.innerHTML = `
+                        <p class="text-xs font-semibold text-slate-500">${comment.author} — ${comment.created_at}</p>
+                        <p class="text-sm text-slate-800">${comment.content}</p>
+                    `
+                    dom.comments.appendChild(li)
+                })
+                
+                if (openModal) modal.classList.remove('hidden')
+            }
+
+            // Mise à jour ou création de la preview dans la liste
+            let preview = document.querySelector(`[data-card-id="${card.id}"]`)
+            if (!preview) {
+                const container = document.querySelector(`.card-container[data-list-id="${card.list_id}"]`)
+                if (container) {
+                    preview = createCardElement(card)
+                    container.appendChild(preview)
+                    // Sortable sur le container gère normalement les nouveaux éléments automatiquement
                 }
             }
 
             if (preview) {
-                 refreshEmptyState(preview)
-             }
+                // Mise à jour des données pour le filtrage
+                preview.dataset.cardLabels = card.labels.map(l => l.id).join(',') + ','
+                preview.dataset.cardDue = card.due_date ? card.due_date.split('T')[0] : ''
+                const now = new Date()
+                const dueDate = card.due_date ? new Date(card.due_date) : null
+                preview.dataset.cardOverdue = (dueDate && dueDate < now) ? '1' : '0'
 
-            dom.labels.innerHTML = ''
-            card.available_labels.forEach(label => {
-                const pill = document.createElement('div')
-                pill.className = 'inline-flex items-center gap-2 rounded-full bg-slate-900/20 px-3 py-1 text-xs font-semibold text-slate-900'
-                const swatch = document.createElement('span')
-                swatch.className = 'inline-block h-3 w-3 rounded-full'
-                swatch.style.backgroundColor = label.color
-                const title = document.createElement('span')
-                title.textContent = label.name
-                const action = document.createElement('button')
-                action.type = 'button'
-                action.textContent = label.assigned ? 'Retirer' : 'Ajouter'
-                action.className = 'text-xs font-semibold text-emerald-600'
-                action.addEventListener('click', (event) => {
-                    event.stopPropagation()
-                    if (label.assigned) {
-                        fetch(endpoints.labelDelete(card.id, label.id), { method: 'POST', headers: { 'X-CSRFToken': csrftoken }})
-                            .then(res => res.json()).then(renderCard)
+                // Mise à jour visuelle
+                const titleEl = preview.querySelector('h3')
+                if (titleEl) titleEl.textContent = card.title
+
+                const descEl = preview.querySelector('[data-card-description]')
+                if (descEl) {
+                    descEl.textContent = card.description
+                    descEl.classList.toggle('hidden', !card.description)
+                }
+
+                const dueEl = preview.querySelector('[data-card-due-display]')
+                if (dueEl) {
+                    if (card.due_date_display) {
+                        dueEl.textContent = `📅 ${card.due_date_display.split(' ')[0]}`
+                        dueEl.classList.remove('hidden')
+                        if (preview.dataset.cardOverdue === '1') {
+                            dueEl.classList.add('text-red-400')
+                            dueEl.classList.remove('text-emerald-300')
+                        } else {
+                            dueEl.classList.remove('text-red-400')
+                            dueEl.classList.add('text-emerald-300')
+                        }
                     } else {
-                        toggleLabel(card.id, label.id)
+                        dueEl.classList.add('hidden')
                     }
-                })
-                pill.appendChild(swatch)
-                pill.appendChild(title)
-                pill.appendChild(action)
-                dom.labels.appendChild(pill)
-            })
+                }
 
-            dom.subtasks.innerHTML = ''
-            card.subtasks.forEach(subtask => {
-                const li = document.createElement('li')
-                li.className = 'flex items-center justify-between rounded-md border border-slate-200 px-3 py-2'
-                li.innerHTML = `
-                    <label class="flex items-center gap-2 text-sm">
-                        <input type="checkbox" ${subtask.is_completed ? 'checked' : ''}>
-                        <span class="${subtask.is_completed ? 'line-through text-slate-400' : ''}">${subtask.title}</span>
-                    </label>
-                    <button class="text-xs text-red-500">Supprimer</button>
-                `
-                const checkbox = li.querySelector('input[type="checkbox"]')
-                checkbox.addEventListener('change', () => toggleSubtask(card.id, subtask.id))
-                li.querySelector('button').addEventListener('click', () => deleteSubtask(card.id, subtask.id))
-                dom.subtasks.appendChild(li)
-            })
+                const labelsWrapper = preview.querySelector('[data-card-labels]')
+                if (labelsWrapper) {
+                    labelsWrapper.innerHTML = ''
+                    if (card.labels.length > 0) {
+                        labelsWrapper.classList.remove('hidden')
+                        card.labels.forEach(label => {
+                            const span = document.createElement('span')
+                            span.className = 'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold text-white'
+                            span.style.backgroundColor = label.color
+                            span.textContent = label.name
+                            labelsWrapper.appendChild(span)
+                        })
+                    } else {
+                        labelsWrapper.classList.add('hidden')
+                    }
+                }
 
-            dom.comments.innerHTML = ''
-            card.comments.forEach(comment => {
-                const li = document.createElement('li')
-                li.className = 'rounded-lg border border-slate-200 px-3 py-2'
-                li.innerHTML = `
-                    <p class="text-xs font-semibold text-slate-500">${comment.author} — ${comment.created_at}</p>
-                    <p class="text-sm text-slate-800">${comment.content}</p>
-                `
-                dom.comments.appendChild(li)
-            })
-            modal.classList.remove('hidden')
+                const assigneesWrapper = preview.querySelector('[data-card-assignees]')
+                if (assigneesWrapper) {
+                    assigneesWrapper.innerHTML = ''
+                    card.assigned_users.forEach(u => {
+                        const div = document.createElement('div')
+                        div.className = 'inline-block h-5 w-5 rounded-full border border-slate-900 bg-emerald-400 text-[9px] font-bold text-slate-900 flex items-center justify-center'
+                        div.title = u.username
+                        div.textContent = u.initial
+                        assigneesWrapper.appendChild(div)
+                    })
+                }
+
+                const subtasksStats = preview.querySelector('[data-card-stats-subtasks]')
+                if (subtasksStats) {
+                    subtasksStats.textContent = `✅ ${card.completed_subtasks}/${card.total_subtasks}`
+                }
+
+                const commentsStats = preview.querySelector('[data-card-stats-comments]')
+                if (commentsStats) {
+                    commentsStats.textContent = `💬 ${card.comment_count}`
+                }
+
+                refreshEmptyState(preview)
+            }
         }
 
         const fetchCard = (cardId) => {
+            showLoader()
             fetch(endpoints.detail(cardId))
                 .then(res => res.json())
                 .then(card => {
-                    renderCard(card)
+                    renderCard(card, true)
                 })
+                .finally(hideLoader)
         }
 
-        const jsonFetch = (url, payload) => fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-            },
-            body: JSON.stringify(payload)
-        }).then(res => {
-            if (!res.ok) throw res
-            return res.json()
-        }).then(renderCard)
+        const jsonFetch = (url, payload) => {
+            showLoader()
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                },
+                body: JSON.stringify(payload)
+            }).then(res => {
+                if (!res.ok) throw res
+                return res.json()
+            }).then(card => renderCard(card))
+            .finally(hideLoader)
+        }
 
         const toggleLabel = (cardId, labelId) => jsonFetch(endpoints.labelToggle(cardId), { label_id: labelId })
-        const toggleSubtask = (cardId, subtaskId) => jsonFetch(endpoints.subtaskToggle(cardId, subtaskId), {})
-        const deleteSubtask = (cardId, subtaskId) => jsonFetch(endpoints.subtaskDelete(cardId, subtaskId), {})
+        const toggleAssignment = (cardId, userId) => jsonFetch(endpoints.assign(cardId), { user_id: userId })
+        window.toggleSubtask = (cardId, subtaskId) => jsonFetch(endpoints.subtaskToggle(cardId, subtaskId), {})
+        window.deleteSubtask = (cardId, subtaskId) => jsonFetch(endpoints.subtaskDelete(cardId, subtaskId), {})
+
+        window.toggleChecklistForm = () => {
+            dom.checklistForm.classList.toggle('hidden')
+            if (!dom.checklistForm.classList.contains('hidden')) {
+                dom.checklistTitleInput.focus()
+            }
+        }
+
+        window.showItemForm = (checklistId) => {
+            const form = document.getElementById(`item-form-${checklistId}`)
+            if (form) {
+                form.classList.remove('hidden')
+                form.querySelector('input').focus()
+            }
+        }
+
+        window.hideItemForm = (checklistId) => {
+            const form = document.getElementById(`item-form-${checklistId}`)
+            if (form) form.classList.add('hidden')
+        }
+
+        window.addChecklist = () => {
+            const title = dom.checklistTitleInput.value.trim()
+            if (!title) return
+            const cardId = dom.mainForm.dataset.cardId
+            jsonFetch(endpoints.checklistCreate(cardId), { title }).then(() => {
+                dom.checklistTitleInput.value = ''
+                dom.checklistForm.classList.add('hidden')
+            })
+        }
+
+        window.deleteChecklist = async (cardId, checklistId) => {
+            if (await window.confirmAction('Supprimer cette checklist ?')) {
+                jsonFetch(endpoints.checklistDelete(cardId, checklistId), {})
+            }
+        }
+
+        window.addChecklistItem = (cardId, checklistId) => {
+            const form = document.getElementById(`item-form-${checklistId}`)
+            const input = form.querySelector('input')
+            const title = input.value.trim()
+            if (!title) return
+            jsonFetch(endpoints.subtaskCreate(cardId), { title, checklist_id: checklistId }).then(() => {
+                input.value = ''
+                form.classList.add('hidden')
+            })
+        }
+
+        dom.btnAddChecklist.addEventListener('click', toggleChecklistForm)
+        dom.checklistCreateCancel.addEventListener('click', toggleChecklistForm)
+        dom.checklistCreateConfirm.addEventListener('click', addChecklist)
+        dom.checklistTitleInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') addChecklist()
+        })
 
         dom.mainForm.addEventListener('submit', (event) => {
             event.preventDefault()
@@ -424,15 +864,6 @@
             })
         })
 
-        dom.subtaskForm.addEventListener('submit', (event) => {
-            event.preventDefault()
-            const title = dom.subtaskForm.title.value.trim()
-            if (!title) return
-            const cardId = dom.subtaskForm.dataset.cardId
-            jsonFetch(endpoints.subtaskCreate(cardId), { title }).then(() => {
-                dom.subtaskForm.reset()
-            })
-        })
 
         dom.commentForm.addEventListener('submit', (event) => {
             event.preventDefault()
@@ -460,40 +891,77 @@
             })
         })
 
-        dom.deleteButton.addEventListener('click', () => {
-            const cardId = dom.deleteButton.dataset.cardId
-            if (!confirm('Archiver cette carte ?')) return
+        window.quickDeleteCard = async (cardId) => {
+            const ok = await window.confirmAction('Archiver cette carte ?')
+            if (!ok) return
+            showLoader()
             fetch(endpoints.cardDelete(cardId), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrftoken,
                 },
-            }).then(res => res.json()).then(data => {
+            }).then(res => {
+                if (!res.ok) throw new Error('Erreur lors de la suppression')
+                return res.json()
+            }).then(data => {
                 const preview = document.querySelector(`[data-card-id="${data.card_id}"]`)
-                if (preview) preview.remove()
-                if (preview) refreshEmptyState(preview)
+                if (preview) {
+                    const container = preview.closest('.card-container')
+                    preview.remove()
+                    if (container) refreshEmptyState(container)
+                }
+                pushToast('La carte a été archivée avec succès.')
+            }).catch(err => {
+                pushToast(err.message, 'error')
+            }).finally(hideLoader)
+        }
+
+        const deleteCard = async () => {
+            const cardId = dom.deleteButton.dataset.cardId
+            if (!cardId) return
+            const ok = await window.confirmAction('Archiver cette carte ?')
+            if (!ok) return
+            showLoader()
+            fetch(endpoints.cardDelete(cardId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                },
+            }).then(res => {
+                if (!res.ok) throw new Error('Erreur lors de la suppression')
+                return res.json()
+            }).then(data => {
+                const preview = document.querySelector(`[data-card-id="${data.card_id}"]`)
+                if (preview) {
+                    const container = preview.closest('.card-container')
+                    preview.remove()
+                    if (container) refreshEmptyState(container)
+                }
+                pushToast('La carte a été archivée avec succès.')
                 closeModal()
-            })
-        })
+            }).catch(err => {
+                pushToast(err.message, 'error')
+            }).finally(hideLoader)
+        }
 
-        document.querySelectorAll('[data-card-id]').forEach(cardEl => {
-            cardEl.addEventListener('click', (event) => {
-                event.stopPropagation()
-                const cardId = cardEl.dataset.cardId
-                fetchCard(cardId)
-            })
-        })
+        dom.deleteButton.addEventListener('click', deleteCard)
+        dom.deleteButtonMobile.addEventListener('click', deleteCard)
 
+        const currentSort = "{{ current_sort|default:'position' }}"
         const initDragAndDrop = () => {
             const boardCanvas = document.getElementById('board-canvas')
             if (!boardCanvas) return
             const reorderCardsUrl = "{% url 'boards:reorder_cards' board.id %}";
             const reorderListsUrl = "{% url 'boards:reorder_lists' board.id %}";
+            
+            // Toujours permettre de réordonner les listes
             new Sortable(boardCanvas, {
                 animation: 200,
                 handle: 'h2',
                 draggable: '[data-list-id]',
+                filter: '.ignore-drag', // Ignore elements with this class
                 onEnd: () => {
                     const order = Array.from(boardCanvas.querySelectorAll('[data-list-id]')).map(list => list.dataset.listId)
                     fetch(reorderListsUrl, {
@@ -503,7 +971,7 @@
                             'X-CSRFToken': csrftoken,
                         },
                         body: JSON.stringify({ order }),
-                    }).catch(() => pushToast('Impossible de réordonner les listes', 'error'))
+                    }).catch(() => pushToast('Le changement d\'ordre des listes a échoué. Veuillez réessayer.', 'error'))
                 },
             })
 
@@ -531,7 +999,7 @@
                     },
                     body: JSON.stringify({ lists: listsPayload })
                 }).catch(() => {
-                    pushToast('Impossible de sauvegarder l\'ordre pour le moment.', 'error');
+                    pushToast('L\'ordre des cartes n\'a pas pu être sauvegardé. Veuillez réessayer.', 'error');
                 });
             }, 300);
 
@@ -540,6 +1008,14 @@
                     group: 'cards',
                     animation: 150,
                     ghostClass: 'opacity-50',
+                    disabled: currentSort !== 'position', // Désactivé si tri automatique actif
+                    onTap: function (/**Event*/evt) {
+                        const cardEl = evt.item; // The clicked card element
+                        const cardId = cardEl.dataset.cardId;
+                        if (cardId) {
+                            fetchCard(cardId);
+                        }
+                    },
                     onEnd: (event) => {
                         sendOrder()
                         refreshEmptyState(event.from)
@@ -551,7 +1027,121 @@
             document.querySelectorAll('.card-container').forEach(refreshEmptyState)
         }
 
-         document.addEventListener('DOMContentLoaded', initDragAndDrop)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDragAndDrop)
+        } else {
+            initDragAndDrop()
+        }
+
+        const exportBtn = document.getElementById('export-btn');
+        if (exportBtn) {
+            const exportDropdown = document.getElementById('export-dropdown');
+            exportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                exportDropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (exportDropdown && !exportDropdown.contains(e.target) && e.target !== exportBtn) {
+                    exportDropdown.classList.add('hidden');
+                }
+            });
+        }
+        // --- WebSocket temps réel ---
+        (function() {
+            const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+            const wsUrl = `${scheme}://${window.location.host}/ws/boards/{{ board.id }}/`
+            let socket = null
+            let reconnectDelay = 2000
+
+            function connect() {
+                console.info('Tentative de connexion WebSocket...', wsUrl)
+                try {
+                    socket = new WebSocket(wsUrl)
+                } catch (e) {
+                    console.error('Erreur lors de la création du WebSocket:', e)
+                    return
+                }
+
+                socket.onopen = () => {
+                    console.info('WebSocket connecté !')
+                    window.pushToast('Vous êtes maintenant connecté en temps réel.', 'info')
+                    reconnectDelay = 2000 // Reset delay on success
+                }
+
+                socket.onmessage = (event) => {
+                    console.debug('WebSocket message reçu:', event.data)
+                    try {
+                        const payload = JSON.parse(event.data)
+                        const action = payload.action || 'update'
+                        
+                        if (action === 'card.updated' && payload.card) {
+                            renderCard(payload.card)
+                            window.pushToast('La carte a été mise à jour par un autre utilisateur.', 'info')
+                        } else if (action === 'card.deleted' && payload.card_id) {
+                            const preview = document.querySelector(`[data-card-id="${payload.card_id}"]`)
+                            if (preview) {
+                                const container = preview.closest('.card-container')
+                                preview.remove()
+                                if (container) refreshEmptyState(container)
+                            }
+                            window.pushToast('Une carte a été archivée par un autre utilisateur.', 'info')
+                        } else if (action === 'card.created' && payload.card) {
+                            renderCard(payload.card)
+                            window.pushToast('Une nouvelle carte a été ajoutée.', 'info')
+                        } else if (action === 'list.deleted' && payload.list_id) {
+                            const listEl = document.querySelector(`[data-list-id="${payload.list_id}"]`)
+                            if (listEl) listEl.remove()
+                            window.pushToast('Une liste a été supprimée par un autre utilisateur.', 'info')
+                        } else if (action === 'cards.reordered' && payload.lists) {
+                            payload.lists.forEach(listData => {
+                                const container = document.querySelector(`.card-container[data-list-id="${listData.id}"]`)
+                                if (container) {
+                                    listData.card_ids.forEach(cardId => {
+                                        const card = document.querySelector(`[data-card-id="${cardId}"]`)
+                                        if (card) container.appendChild(card)
+                                    })
+                                    refreshEmptyState(container)
+                                }
+                            })
+                            window.pushToast('L\'ordre des cartes a été modifié.', 'info')
+                        } else if (action === 'lists.reordered' && payload.order) {
+                            const canvas = document.getElementById('board-canvas')
+                            if (canvas) {
+                                payload.order.forEach(listId => {
+                                    const list = canvas.querySelector(`[data-list-id="${listId}"]`)
+                                    if (list) canvas.insertBefore(list, canvas.lastElementChild)
+                                })
+                            }
+                            window.pushToast('L\'ordre des listes a été modifié.', 'info')
+                        }
+                    } catch (e) {
+                        console.error('Erreur lors du traitement du message WebSocket:', e)
+                    }
+                }
+
+                socket.onclose = (e) => {
+                    console.warn(`WebSocket déconnecté (code=${e.code}). Reconnexion dans ${reconnectDelay}ms...`)
+                    if (e.code === 4401 || e.code === 4403) {
+                        console.error('Accès WebSocket refusé. Pas de reconnexion.')
+                        return
+                    }
+                    setTimeout(connect, reconnectDelay)
+                    reconnectDelay = Math.min(reconnectDelay * 2, 30000) // Exponential backoff
+                }
+
+                socket.onerror = (err) => {
+                    console.error('Erreur WebSocket:', err)
+                    if (socket) {
+                        try { socket.close() } catch(_) {}
+                    }
+                }
+            }
+            
+            // On attend un peu que tout soit prêt avant de lancer le WS
+            if (document.readyState === 'complete') connect()
+            else window.addEventListener('load', connect)
+        })()
     </script>
  </body>
  </html>

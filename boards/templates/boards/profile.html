@@ -1,0 +1,137 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Mon Profil - EpiTrello</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'boards/theme.css' %}">
+    <script src="{% static 'boards/app.js' %}" defer></script>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-white">
+    <header class="px-6 py-4">
+        <div class="mx-auto flex max-w-6xl items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="{% url 'home' %}" class="flex items-center gap-3">
+                    <div class="rounded-lg bg-emerald-400/20 p-2">
+                        <span class="text-xl font-black text-emerald-300">ET</span>
+                    </div>
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.4em] text-slate-400">EpiTrello</p>
+                    </div>
+                </a>
+            </div>
+            <nav class="flex items-center gap-4 text-sm">
+                <a href="{% url 'boards:board_list' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20 btn-focus-visible" data-tooltip="Voir tous mes espaces">Mes tableaux</a>
+                <form action="{% url 'logout' %}" method="post" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Quitter la session">Déconnexion</button>
+                </form>
+            </nav>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-4xl px-6 py-12">
+        <div id="toast-stack" class="fixed inset-x-0 top-6 z-50 mx-auto flex max-w-md flex-col gap-3 px-4"></div>
+        <div class="rounded-3xl border border-white/10 bg-slate-900/50 p-8 shadow-2xl backdrop-blur-sm">
+            <div class="flex flex-col items-center gap-6 md:flex-row md:items-start">
+                <div class="flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-5xl font-black text-white shadow-lg shadow-emerald-500/20">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+                <div class="flex-1 space-y-4 text-center md:text-left">
+                    <div>
+                        <h1 class="text-4xl font-black text-white">{{ user.username }}</h1>
+                        <p class="text-slate-400">Membre depuis le {{ user.date_joined|date:"d F Y" }}</p>
+                    </div>
+                    <div class="flex flex-wrap justify-center gap-4 md:justify-start">
+                        <div class="rounded-2xl border border-white/5 bg-white/5 px-6 py-4">
+                            <dt class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Tableaux</dt>
+                            <dd class="text-3xl font-black text-emerald-300">{{ boards_count }}</dd>
+                        </div>
+                        <div class="rounded-2xl border border-white/5 bg-white/5 px-6 py-4">
+                            <dt class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Dernière connexion</dt>
+                            <dd class="text-lg font-bold text-white">{{ user.last_login|date:"d/m/Y H:i"|default:"Première session" }}</dd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-12 grid gap-6 md:grid-cols-2">
+                <div class="rounded-2xl border border-white/5 bg-white/5 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-white">Notifications récentes</h3>
+                        <a href="{% url 'boards:notifications_list' %}" class="text-xs font-semibold text-emerald-400 hover:text-emerald-300">Voir tout</a>
+                    </div>
+                    <div class="space-y-4">
+                        {% for notification in notifications %}
+                            <div class="flex items-start gap-3 rounded-xl {% if not notification.is_read %}bg-emerald-400/5 border border-emerald-400/20{% else %}bg-white/5{% endif %} p-3">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs text-white truncate">{{ notification.message }}</p>
+                                    <p class="text-[9px] text-slate-500 uppercase tracking-tighter">{{ notification.created_at|date:"d/m · H:i" }}</p>
+                                </div>
+                                {% if notification.link %}
+                                <a href="{{ notification.link }}" class="text-[10px] font-bold text-emerald-400 hover:underline">Voir</a>
+                                {% endif %}
+                            </div>
+                        {% empty %}
+                            <p class="text-xs text-slate-500 italic">Aucune notification récente.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="rounded-2xl border border-white/5 bg-white/5 p-6">
+                    <h3 class="text-xl font-bold text-white mb-4">Informations personnelles</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-slate-400">Email</span>
+                            <span class="text-white">{{ user.email|default:"Non renseigné" }}</span>
+                        </div>
+                        <div class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-slate-400">Prénom</span>
+                            <span class="text-white">{{ user.first_name|default:"Non renseigné" }}</span>
+                        </div>
+                        <div class="flex justify-between pb-2">
+                            <span class="text-slate-400">Nom</span>
+                            <span class="text-white">{{ user.last_name|default:"Non renseigné" }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="rounded-2xl border border-white/5 bg-white/5 p-6 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold text-white mb-2">Actions rapides</h3>
+                        <p class="text-sm text-slate-400 mb-4">Gère tes tableaux ou accède à tes projets en cours.</p>
+                    </div>
+                    <div class="grid gap-3">
+                        <a href="{% url 'boards:board_list' %}" class="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/20 hover:bg-emerald-300 transition-all">
+                            Accéder à mes tableaux
+                        </a>
+                        <a href="{% url 'password_change' %}" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 transition-all">
+                            Changer mon mot de passe
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-12 flex justify-center">
+             <a href="{% url 'home' %}" class="text-sm font-semibold text-slate-400 hover:text-white transition-colors">
+                ← Retour à l'accueil
+            </a>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            {% if messages %}
+                {% for message in messages %}
+                    window.pushToast("{{ message|escapejs }}", "{{ message.tags }}")
+                {% endfor %}
+            {% endif %}
+        });
+    </script>
+
+    <footer class="mt-12 border-t border-white/5 bg-slate-950/80 py-6 text-center text-sm text-slate-500">
+        EpiTrello — Mon Profil
+    </footer>
+</body>
+</html>

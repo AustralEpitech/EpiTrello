@@ -44,7 +44,7 @@
             <button type="submit" class="w-full rounded-2xl bg-emerald-400 py-2 text-sm font-semibold text-slate-900 shadow hover:bg-emerald-300">Se connecter</button>
             <input type="hidden" name="next" value="{{ next }}">
         </form>
-        <p class="text-center text-sm text-slate-400">Pas encore de compte ? <a href="{% url 'admin:login' %}" class="text-emerald-300 hover:text-emerald-200">Contacte l'admin</a></p>
+        <p class="text-center text-sm text-slate-400">Pas encore de compte ? <a href="{% url 'boards:signup' %}" class="text-emerald-300 hover:text-emerald-200">S'inscrire</a></p>
     </div>
 </body>
 </html>

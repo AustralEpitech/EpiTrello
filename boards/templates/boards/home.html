@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>EpiTrello - Organise tout</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="{% static 'boards/favicon.svg' %}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{% static 'boards/theme.css' %}">
     <script src="{% static 'boards/app.js' %}" defer></script>
@@ -23,11 +24,23 @@
             </div>
             <nav class="flex items-center gap-4 text-sm">
                 {% if user.is_authenticated %}
-                    <a href="{% url 'boards:board_list' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20 btn-focus-visible">Mes tableaux</a>
-                    <a href="{% url 'admin:logout' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10 btn-focus-visible">Déconnexion</a>
+                    <a href="{% url 'boards:notifications_list' %}" class="relative rounded-full bg-white/10 p-2 text-white hover:bg-white/20 btn-focus-visible" data-tooltip="Mes notifications">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-slate-900">{{ unread_notifications_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'boards:board_list' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20 btn-focus-visible" data-tooltip="Voir tous mes espaces">Mes tableaux</a>
+                    <form action="{% url 'logout' %}" method="post" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Quitter la session">Déconnexion</button>
+                    </form>
+                    <a href="{% url 'boards:profile' %}" class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400 font-bold text-slate-900 hover:bg-emerald-300 btn-focus-visible" data-tooltip="Mon Profil">
+                        {{ user.username|slice:":1"|upper }}
+                    </a>
                 {% else %}
-                    <a href="{% url 'admin:login' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20 btn-focus-visible">Connexion</a>
-                    <a href="{% url 'admin:login' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10 btn-focus-visible">S'inscrire</a>
+                    <a href="{% url 'login' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20 btn-focus-visible">Connexion</a>
+                    <a href="{% url 'boards:signup' %}" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10 btn-focus-visible">S'inscrire</a>
                 {% endif %}
             </nav>
         </div>
@@ -55,8 +68,8 @@
                     <div class="flex items-center justify-between">
                         <p class="text-xs uppercase tracking-[0.5em] text-slate-400">Parcours express</p>
                         <div class="flex gap-2" data-onboarding>
-                            <button type="button" data-prev class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10 btn-focus-visible" aria-label="Slide précédente">←</button>
-                            <button type="button" data-next class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10 btn-focus-visible" aria-label="Slide suivante">→</button>
+                            <button type="button" data-prev class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Étape précédente" aria-label="Slide précédente">←</button>
+                            <button type="button" data-next class="rounded-full border border-white/10 px-3 py-1 text-xs text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Étape suivante" aria-label="Slide suivante">→</button>
                             <div class="sr-only" data-slide></div>
                         </div>
                     </div>
@@ -105,7 +118,7 @@
              </div>
         </section>
 
-        <section class="space-y-6">
+        <section id="features" class="space-y-6">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-xs uppercase tracking-wide text-slate-500">Pour aller plus loin</p>
@@ -160,7 +173,7 @@
                         </dl>
                         <div class="mt-4 flex items-center justify-between">
                             <p class="text-xs text-slate-400">Propriétaire · {{ board.owner }}</p>
-                            <a href="{% url 'boards:board_detail' board.id %}" class="rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-300">Ouvrir</a>
+                            <a href="{% url 'boards:board_detail' board.id %}" class="rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-300" data-tooltip="Accéder au tableau">Ouvrir</a>
                         </div>
                     </article>
                 {% empty %}
@@ -176,9 +189,20 @@
         {% endif %}
     </main>
 
+    <div id="toast-stack" class="fixed inset-x-0 top-6 z-50 mx-auto flex max-w-md flex-col gap-3 px-4"></div>
+
     <footer class="mt-12 border-t border-white/5 bg-slate-950/80 py-6 text-center text-sm text-slate-500">
         Construit avec Django · Tailwind · SortableJS — Inspiré de Trello pour Epitech
     </footer>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            {% if messages %}
+                {% for message in messages %}
+                    window.pushToast("{{ message|escapejs }}", "{{ message.tags }}")
+                {% endfor %}
+            {% endif %}
+        });
+    </script>
 </body>
 </html>
 

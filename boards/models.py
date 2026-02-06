@@ -4,7 +4,8 @@ from django.contrib.auth.models import User
 
 class Board(models.Model):
     title = models.CharField(max_length=100)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_boards")
+    members = models.ManyToManyField(User, related_name="joined_boards", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -56,13 +57,35 @@ class Card(models.Model):
         return f"{self.title} ({self.list.title})"
 
 
+class Checklist(models.Model):
+    title = models.CharField(max_length=100, default="Checklist")
+    card = models.ForeignKey(
+        "Card", on_delete=models.CASCADE, related_name="checklists"
+    )
+    position = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position"]
+
+    def __str__(self):
+        return f"{self.title} (Card: {self.card.title})"
+
+
 class Subtask(models.Model):
     title = models.CharField(max_length=100)
     card = models.ForeignKey(
         Card, on_delete=models.CASCADE, related_name="subtasks"
     )
+    checklist = models.ForeignKey(
+        Checklist, on_delete=models.CASCADE, related_name="items", null=True, blank=True
+    )
     is_completed = models.BooleanField(default=False)
+    position = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "created_at"]
 
     def __str__(self):
         return f"{self.title} (Card: {self.card.title})"
@@ -81,3 +104,17 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author} on {self.card.title}"
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    message = models.CharField(max_length=255)
+    link = models.CharField(max_length=255, blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Notification for {self.user.username}: {self.message}"

@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Recherche Globale - EpiTrello</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'boards/theme.css' %}">
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-930 to-slate-900 text-white">
+    <div class="relative isolate">
+        <div class="absolute inset-x-0 -top-24 -z-10 h-72 bg-emerald-500/30 blur-3xl"></div>
+        <header class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 px-6 py-10">
+            <div class="flex items-center gap-6">
+                <a href="{% url 'boards:board_list' %}" class="group">
+                    <div class="rounded-lg bg-emerald-400/20 p-2 group-hover:bg-emerald-400/30 transition-colors">
+                        <span class="text-xl font-black text-emerald-300">ET</span>
+                    </div>
+                </a>
+                <div>
+                    <p class="text-xs uppercase tracking-[0.4em] text-emerald-300">EpiTrello</p>
+                    <h1 class="text-4xl font-black leading-tight">Recherche globale</h1>
+                    <p class="text-sm text-slate-300">Trouve rapidement des tableaux ou des cartes.</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="{% url 'boards:board_list' %}" class="rounded-full border border-white/10 px-5 py-2 text-sm font-semibold hover:bg-white/10 transition">Retour aux tableaux</a>
+            </div>
+        </header>
+
+        <section class="mx-auto max-w-6xl space-y-12 px-6 pb-20">
+            <form action="{% url 'boards:global_search' %}" method="get" class="flex max-w-2xl gap-4 rounded-3xl border border-white/10 bg-white/5 p-2 shadow-2xl">
+                <div class="flex flex-1 items-center gap-3 px-4">
+                    <svg class="h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input name="q" value="{{ query }}" placeholder="Rechercher partout..." class="w-full bg-transparent py-3 text-lg text-white placeholder-slate-500 focus:outline-none" autofocus autocomplete="off">
+                </div>
+                <button type="submit" class="rounded-2xl bg-emerald-400 px-8 py-3 font-bold text-slate-900 hover:bg-emerald-300 transition">Rechercher</button>
+            </form>
+
+            {% if query %}
+                <div class="space-y-12">
+                    <!-- Section Tableaux -->
+                    <div>
+                        <div class="mb-6 flex items-center gap-4">
+                            <h2 class="text-2xl font-bold">Tableaux</h2>
+                            <span class="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-400/20">{{ boards|length }}</span>
+                        </div>
+                        
+                        {% if boards %}
+                            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                {% for board in boards %}
+                                    <a href="{% url 'boards:board_detail' board.id %}" class="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-all">
+                                        <div class="flex items-start justify-between">
+                                            <h3 class="text-xl font-bold group-hover:text-emerald-400 transition-colors">{{ board.title }}</h3>
+                                            <div class="rounded-full bg-white/10 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                            </div>
+                                        </div>
+                                        <p class="mt-2 text-xs text-slate-400 uppercase tracking-widest">Propriétaire : {{ board.owner.username }}</p>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-slate-500 italic">Aucun tableau trouvé pour "{{ query }}".</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Section Cartes -->
+                    <div>
+                        <div class="mb-6 flex items-center gap-4">
+                            <h2 class="text-2xl font-bold">Cartes</h2>
+                            <span class="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-400/20">{{ cards|length }}</span>
+                        </div>
+
+                        {% if cards %}
+                            <div class="space-y-4">
+                                {% for card in cards %}
+                                    <a href="{% url 'boards:board_detail' card.list.board.id %}?card={{ card.id }}" class="block rounded-3xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-all">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <div>
+                                                <h3 class="text-lg font-bold">{{ card.title }}</h3>
+                                                <p class="text-sm text-slate-400 line-clamp-1">{{ card.description|default:"Pas de description" }}</p>
+                                            </div>
+                                            <div class="text-right shrink-0">
+                                                <p class="text-xs font-bold uppercase tracking-widest text-emerald-400">{{ card.list.board.title }}</p>
+                                                <p class="text-[10px] text-slate-500">Liste : {{ card.list.title }}</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-slate-500 italic">Aucune carte trouvée pour "{{ query }}".</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="flex flex-col items-center justify-center py-20 text-center">
+                    <div class="mb-6 rounded-full bg-white/5 p-10">
+                        <svg class="h-20 w-20 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-400">Entrez un terme pour commencer la recherche</h2>
+                    <p class="mt-2 text-slate-500">Nous chercherons dans tous vos tableaux et cartes.</p>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+</body>
+</html>

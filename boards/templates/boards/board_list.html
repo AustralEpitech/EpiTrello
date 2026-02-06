@@ -13,14 +13,39 @@
     <div class="relative isolate">
         <div class="absolute inset-x-0 -top-24 -z-10 h-72 bg-emerald-500/30 blur-3xl"></div>
         <header class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 px-6 py-10">
-            <div>
-                <p class="text-xs uppercase tracking-[0.4em] text-emerald-300">EpiTrello</p>
-                <h1 class="text-4xl font-black leading-tight">Organise tes tableaux</h1>
-                <p class="text-sm text-slate-300">Tous tes espaces de travail, filtres et actions en un coup d’œil.</p>
+            <div class="flex items-center gap-6">
+                <a href="{% url 'home' %}" class="group">
+                    <div class="rounded-lg bg-emerald-400/20 p-2 group-hover:bg-emerald-400/30 transition-colors">
+                        <span class="text-xl font-black text-emerald-300">ET</span>
+                    </div>
+                </a>
+                <div>
+                    <p class="text-xs uppercase tracking-[0.4em] text-emerald-300">EpiTrello</p>
+                    <h1 class="text-4xl font-black leading-tight">Organise tes tableaux</h1>
+                    <p class="text-sm text-slate-300">Tous tes espaces de travail, filtres et actions en un coup d’œil.</p>
+                </div>
             </div>
-            <button type="button" onclick="openBoardModal()" class="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-300">
-                <span class="text-lg">＋</span> Nouveau tableau
-            </button>
+            <div class="flex items-center gap-4">
+                {% if user.is_authenticated %}
+                <a href="{% url 'boards:global_search' %}" class="rounded-full bg-white/10 p-2 text-white hover:bg-white/20 btn-focus-visible" data-tooltip="Recherche globale">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </a>
+                <a href="{% url 'boards:notifications_list' %}" class="relative rounded-full bg-white/10 p-2 text-white hover:bg-white/20 btn-focus-visible" data-tooltip="Mes notifications">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    {% if unread_notifications_count > 0 %}
+                        <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-slate-900">{{ unread_notifications_count }}</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+                <button type="button" onclick="openBoardModal()" class="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 hover:bg-emerald-300" data-tooltip="Créer un nouvel espace">
+                    <span class="text-lg">＋</span> Nouveau tableau
+                </button>
+                {% if user.is_authenticated %}
+                <a href="{% url 'boards:profile' %}" class="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 font-bold text-white hover:bg-white/20 btn-focus-visible shadow-lg" data-tooltip="Mon Profil">
+                    {{ user.username|slice:":1"|upper }}
+                </a>
+                {% endif %}
+            </div>
         </header>
 
         <section class="mx-auto max-w-6xl space-y-6 px-6">
@@ -86,11 +111,22 @@
 
     <div id="toast-stack" class="fixed inset-x-0 top-6 z-50 mx-auto flex max-w-md flex-col gap-3 px-4"></div>
 
+    <div id="global-loader" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px] opacity-0 invisible">
+        <div class="flex flex-col items-center gap-3">
+            <div class="spinner"></div>
+            <p class="text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">Recherche...</p>
+        </div>
+    </div>
+
     <script>
         const boardModal = document.getElementById('board-modal')
         const renameModal = document.getElementById('rename-modal')
         const renameForm = document.getElementById('rename-form')
         const toastStack = document.getElementById('toast-stack')
+        const loader = document.getElementById('global-loader')
+        const showLoader = () => { loader.classList.remove('opacity-0', 'invisible'); loader.classList.add('opacity-100', 'visible') }
+        const hideLoader = () => { loader.classList.add('opacity-0', 'invisible'); loader.classList.remove('opacity-100', 'visible') }
+
         function navigateBoard(url) {
             window.location.href = url
         }
@@ -117,22 +153,13 @@
         }
         renameModal?.addEventListener('click', (e) => { if (e.target === renameModal) closeRename() })
 
-        function pushToast(message, variant = 'success') {
-            const tone = variant.includes('error') ? 'red' : 'emerald'
-            const toast = document.createElement('div')
-            toast.className = `rounded-2xl border border-${tone}-300/40 bg-white/90 px-4 py-2 text-sm font-medium text-slate-900 shadow-lg backdrop-blur transition`
-            toast.textContent = message
-            toastStack.appendChild(toast)
-            setTimeout(() => {
-                toast.classList.add('translate-y-1', 'opacity-0')
-                toast.addEventListener('transitionend', () => toast.remove())
-            }, 2600)
-        }
-        {% if messages %}
-            {% for message in messages %}
-                pushToast("{{ message|escapejs }}", "{{ message.tags }}")
-            {% endfor %}
-        {% endif %}
+        document.addEventListener('DOMContentLoaded', () => {
+            {% if messages %}
+                {% for message in messages %}
+                    window.pushToast("{{ message|escapejs }}", "{{ message.tags }}")
+                {% endfor %}
+            {% endif %}
+        });
 
         const filterForm = document.getElementById('boards-filter')
         if (filterForm) {
@@ -144,6 +171,7 @@
                 }
             }
             const fetchBoards = () => {
+                showLoader()
                 const params = new URLSearchParams(new FormData(filterForm))
                 fetch(`${window.location.pathname}?${params.toString()}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(res => res.text())
@@ -158,11 +186,18 @@
                             window.location.search = params.toString()
                         }
                     })
+                    .finally(hideLoader)
             }
             filterForm.querySelectorAll('input[name="q"], select').forEach(input => {
                 input.addEventListener(input.tagName === 'SELECT' ? 'change' : 'input', debounce(fetchBoards))
             })
         }
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('new') === '1' || window.location.hash === '#new') {
+                openBoardModal();
+            }
+        });
     </script>
 </body>
 </html>

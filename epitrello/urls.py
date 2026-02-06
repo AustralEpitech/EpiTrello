@@ -22,14 +22,17 @@ from boards import views as board_views
 from django.contrib.auth import views as auth_views
 
 
-def home(request):
-    return HttpResponse("Epitrello API is running.")
-
 
 urlpatterns = [
-    path("admin/logout/", board_views.admin_logout, name="admin_logout"),
     path("admin/", admin.site.urls),
+    # Surcharge de la vue de changement de mot de passe pour inclure l'email
+    path(
+        "accounts/password_change/",
+        board_views.CustomPasswordChangeView.as_view(),
+        name="password_change",
+    ),
     path("accounts/", include("django.contrib.auth.urls")),
+    path("logout/", board_views.logout_view, name="logout"),
     path("", board_views.home, name="home"),
     path("boards/", include("boards.urls")),
 ]

@@ -1,0 +1,101 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gérer les membres - {{ board.title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'boards/theme.css' %}">
+    <script src="{% static 'boards/app.js' %}" defer></script>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-930 to-slate-900 text-white">
+    <div id="toast-stack" class="fixed inset-x-0 top-6 z-50 mx-auto flex max-w-md flex-col gap-3 px-4"></div>
+
+    <header class="px-6 py-8">
+        <div class="mx-auto flex max-w-4xl items-center justify-between">
+            <div class="flex items-center gap-4">
+                <a href="{% url 'boards:board_detail' board.id %}" class="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/10 transition-colors">← Retour au tableau</a>
+                <h1 class="text-2xl font-black">Membres de "{{ board.title }}"</h1>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-4xl px-6 py-4">
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-sm">
+            <div class="space-y-6">
+                <div>
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-emerald-400">Propriétaire</h2>
+                    <div class="mt-4 flex items-center justify-between rounded-2xl bg-white/5 p-4 border border-white/5">
+                        <div class="flex items-center gap-4">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-slate-900 font-bold text-xl">
+                                {{ board.owner.username|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <p class="font-bold text-lg">{{ board.owner.username }}</p>
+                                <p class="text-sm text-slate-400">{{ board.owner.email|default:"Pas d'email" }}</p>
+                            </div>
+                        </div>
+                        <span class="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-bold text-emerald-300 border border-emerald-400/30">Owner</span>
+                    </div>
+                </div>
+
+                <div class="pt-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-400">Membres invités ({{ members.count }})</h2>
+                    </div>
+                    <div class="mt-4 space-y-3">
+                        {% for member in members %}
+                        <div class="flex items-center justify-between rounded-2xl bg-white/5 p-4 border border-white/5 transition-all hover:bg-white/10" id="member-row-{{ member.id }}">
+                            <div class="flex items-center gap-4">
+                                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 text-white font-bold">
+                                    {{ member.username|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <p class="font-semibold">{{ member.username }}</p>
+                                    <p class="text-xs text-slate-500">{{ member.email|default:"Pas d'email" }}</p>
+                                </div>
+                            </div>
+                            <button onclick="removeMember({{ member.id }}, '{{ member.username|escapejs }}')" class="rounded-xl border border-red-500/30 px-4 py-2 text-xs font-bold text-red-400 hover:bg-red-500 hover:text-white transition-all">Retirer</button>
+                        </div>
+                        {% empty %}
+                        <div class="rounded-2xl border border-dashed border-white/10 p-12 text-center">
+                            <p class="text-slate-500 italic">Aucun membre invité pour le moment.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const csrftoken = '{{ csrf_token }}';
+        
+        async function removeMember(userId, username) {
+            const ok = await window.confirmAction(`Retirer ${username} de ce tableau ?`);
+            if (!ok) return;
+
+            try {
+                const response = await fetch(`{% url 'boards:manage_members' board.id %}/${userId}/remove`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById(`member-row-${userId}`).remove();
+                    window.pushToast(data.message);
+                } else {
+                    window.pushToast(data.error || 'L\'invitation n\'a pas pu être supprimée. Veuillez réessayer.', 'error');
+                }
+            } catch (err) {
+                window.pushToast('Une erreur inattendue est survenue. Veuillez rafraîchir la page.', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

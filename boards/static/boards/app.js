@@ -19,6 +19,23 @@
     }, 3500)
   }
 
+  // Intercepteur global pour gérer la perte d'accès pendant qu'on est sur la page
+  const originalFetch = window.fetch?.bind(window)
+  if (originalFetch) {
+    window.fetch = (input, init) => originalFetch(input, init).then((res) => {
+      if (res && (res.status === 403 || res.status === 404)) {
+        // Accès révoqué ou ressource supprimée pendant la session
+        window.pushToast("Vos droits d'accès à ce contenu ont été révoqués.", 'error')
+        // Redirection douce vers la liste des tableaux
+        setTimeout(() => { try { window.location.href = '/boards/'; } catch (_) {} }, 1200)
+      }
+      return res
+    }).catch((err) => {
+      window.pushToast('Erreur de connexion. Veuillez vérifier votre accès à Internet.', 'error')
+      throw err
+    })
+  }
+
   document.querySelectorAll('[data-collapse-toggle]').forEach(button => {
     button.addEventListener('click', () => {
       const list = button.closest('[data-list-id]')

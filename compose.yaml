@@ -7,7 +7,7 @@ services:
     command:
       - sh
       - -c
-      - ./manage.py migrate && uvicorn --host 0 epitrello.asgi:application
+      - python manage.py migrate && uvicorn --host 0 epitrello.asgi:application
     env_file:
       - .env
     environment:
@@ -15,8 +15,10 @@ services:
       - POSTGRES_DB=db
       - POSTGRES_USER=db
       - POSTGRES_PASSWORD=db
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - db
+      - redis
 
   db:
     image: docker.io/postgres:18
@@ -26,6 +28,10 @@ services:
       - POSTGRES_PASSWORD=db
     volumes:
       - db:/var/lib/postgresql/
+
+  redis:
+    image: docker.io/redis:7
+    command: ["redis-server", "--appendonly", "no"]
 
 volumes:
   db: {}

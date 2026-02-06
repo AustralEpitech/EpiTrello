@@ -1,0 +1,51 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <title>Inscription - EpiTrello</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex min-h-full items-center justify-center bg-slate-950 px-4 py-12 text-white">
+    <div class="w-full max-w-md space-y-6 rounded-3xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl">
+        <div class="text-center space-y-2">
+            <p class="text-xs uppercase tracking-[0.4em] text-slate-500">EpiTrello</p>
+            <h1 class="text-2xl font-bold">Inscription</h1>
+            <p class="text-sm text-slate-400">Rejoins la communauté EpiTrello dès aujourd'hui.</p>
+        </div>
+        
+        <form method="post" action="" class="space-y-4">
+            {% csrf_token %}
+            
+            {% for field in form %}
+                <div class="space-y-1">
+                    <label class="text-sm font-semibold text-slate-300">{{ field.label }}</label>
+                    <input type="{{ field.field.widget.input_type|default:'text' }}" 
+                           name="{{ field.name }}" 
+                           {% if field.field.required %}required{% endif %}
+                           class="w-full rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none placeholder-slate-500">
+                    {% if field.help_text %}
+                        <p class="text-[10px] text-slate-500 leading-tight">{{ field.help_text|safe }}</p>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <p class="text-xs text-red-400">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            {% if form.non_field_errors %}
+                <div class="rounded-lg bg-red-500/10 p-3">
+                    {% for error in form.non_field_errors %}
+                        <p class="text-sm text-red-400">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <button type="submit" class="mt-2 w-full rounded-2xl bg-emerald-400 py-2 text-sm font-semibold text-slate-900 shadow hover:bg-emerald-300 transition-colors">Créer mon compte</button>
+        </form>
+
+        <p class="text-center text-sm text-slate-400">Déjà un compte ? <a href="{% url 'login' %}" class="text-emerald-300 hover:text-emerald-200">Se connecter</a></p>
+    </div>
+</body>
+</html>
