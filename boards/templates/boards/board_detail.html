@@ -305,6 +305,13 @@
          }
         window.pushToast = pushToast
 
+        window.confirmAction = async (message) => {
+            return new Promise((resolve) => {
+                const confirmed = window.confirm(message)
+                resolve(confirmed)
+            })
+        }
+
         let activeFilter = null
 
         {% if messages %}
@@ -544,7 +551,6 @@
                 dom.mainForm.description.value = card.description
                 dom.mainForm.due_date.value = card.due_date_local || ''
                 dom.mainForm.dataset.cardId = card.id
-                dom.subtaskForm.dataset.cardId = card.id
                 dom.commentForm.dataset.cardId = card.id
                 dom.labelForm.dataset.cardId = card.id
                 dom.deleteButton.dataset.cardId = card.id
@@ -772,11 +778,20 @@
         const fetchCard = (cardId) => {
             showLoader()
             fetch(endpoints.detail(cardId))
-                .then(res => res.json())
-                .then(card => {
-                    renderCard(card, true)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`Le serveur a retourné une erreur.`);
+                    }
+                    return res.json();
                 })
-                .finally(hideLoader)
+                .then(card => {
+                    renderCard(card, true);
+                })
+                .catch(error => {
+                    console.error('Impossible de charger les détails de la carte:', error);
+                    pushToast('Une erreur est survenue lors du chargement de la carte.', 'error');
+                })
+                .finally(hideLoader);
         }
 
         const jsonFetch = (url, payload) => {
@@ -1009,18 +1024,24 @@
                     animation: 150,
                     ghostClass: 'opacity-50',
                     disabled: currentSort !== 'position', // Désactivé si tri automatique actif
-                    onTap: function (/**Event*/evt) {
-                        const cardEl = evt.item; // The clicked card element
-                        const cardId = cardEl.dataset.cardId;
-                        if (cardId) {
-                            fetchCard(cardId);
-                        }
-                    },
+                    // Always allow opening card details on tap
                     onEnd: (event) => {
                         sendOrder()
                         refreshEmptyState(event.from)
                         refreshEmptyState(event.to)
                     },
+                });
+            });
+
+            // Add click listeners to cards AFTER Sortable has been initialized
+            document.querySelectorAll('article[data-card-id]').forEach(cardElement => {
+                cardElement.addEventListener('click', (event) => {
+                    // Empêche la propagation de l'événement pour éviter les conflits avec Sortable.js
+                    event.stopPropagation();
+                    const cardId = cardElement.dataset.cardId;
+                    if (cardId) {
+                        fetchCard(cardId);
+                    }
                 });
             });
 
