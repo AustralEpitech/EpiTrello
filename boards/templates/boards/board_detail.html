@@ -1024,24 +1024,12 @@
                     animation: 150,
                     ghostClass: 'opacity-50',
                     disabled: currentSort !== 'position', // Désactivé si tri automatique actif
-                    // Always allow opening card details on tap
+                    // The onTap event was here, it is now removed.
                     onEnd: (event) => {
                         sendOrder()
                         refreshEmptyState(event.from)
                         refreshEmptyState(event.to)
                     },
-                });
-            });
-
-            // Add click listeners to cards AFTER Sortable has been initialized
-            document.querySelectorAll('article[data-card-id]').forEach(cardElement => {
-                cardElement.addEventListener('click', (event) => {
-                    // Empêche la propagation de l'événement pour éviter les conflits avec Sortable.js
-                    event.stopPropagation();
-                    const cardId = cardElement.dataset.cardId;
-                    if (cardId) {
-                        fetchCard(cardId);
-                    }
                 });
             });
 
@@ -1053,6 +1041,18 @@
         } else {
             initDragAndDrop()
         }
+
+        // Add event listener to the document to handle clicks on cards
+        document.addEventListener('click', (event) => {
+            const cardElement = event.target.closest('article[data-card-id]');
+            if (cardElement) {
+                event.stopPropagation(); // Prevent event from bubbling up to Sortable.js
+                const cardId = cardElement.dataset.cardId;
+                if (cardId) {
+                    fetchCard(cardId);
+                }
+            }
+        });
 
         const exportBtn = document.getElementById('export-btn');
         if (exportBtn) {
