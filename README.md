@@ -39,7 +39,7 @@ python manage.py seed
 
 EpiTrello supporte le temps réel via WebSocket grâce à Django Channels.
 
-- En développement local (sans Docker): rien à configurer. Sans variable `REDIS_URL`, l’application utilise un Channel Layer en mémoire (pas persistant), suffisant pour tester.
+- En développement local (sans Docker): rien à configurer. Sans variable `REDIS_URL`, l'application utilise un Channel Layer en mémoire (pas persistant), suffisant pour tester.
 - En Docker (production‑like): un service Redis est inclus dans `compose.yaml`. Lancez:
 
 ```bash
@@ -49,14 +49,64 @@ docker-compose up --build
 Cela démarre:
 - Postgres (db)
 - Redis (channel layer)
-- L’app ASGI (Uvicorn)
+- L'app ASGI (Uvicorn)
 
-La variable d’environnement `REDIS_URL` est automatiquement fournie au conteneur d’app.
+La variable d'environnement `REDIS_URL` est automatiquement fournie au conteneur d'app.
 
 ### Fonctionnement
 - Chaque tableau possède un groupe WS `board_<id>`.
 - Le navigateur ouvre `ws://<host>/ws/boards/<id>/` sur la page du tableau.
 - Les actions serveur (mise à jour/suppression/création de carte, réordonnancement, etc.) émettent des événements vers le groupe correspondant.
 
-### Tests
-La suite de tests inclut des tests de diffusion qui valident qu’un événement est bien envoyé lors d’une mise à jour/suppression de carte (sans nécessiter Redis ni un serveur WS).
+## Tests
+
+### Running Tests
+
+To run all tests:
+
+```bash
+python manage.py test
+```
+
+### Code Coverage
+
+The project maintains ≥85% code coverage on backend Python code.
+
+To run tests with coverage:
+
+```bash
+# Run tests with coverage
+coverage run --source=boards,epitrello manage.py test
+
+# Display coverage report in terminal
+coverage report
+
+# Generate HTML coverage report
+coverage html
+# Then open htmlcov/index.html in your browser
+```
+
+The coverage configuration is in `.coveragerc` and excludes:
+- Migration files
+- Test files themselves
+- Admin and app configuration files
+- Static files
+
+### Test Organization
+
+Tests are organized in multiple files:
+- `boards/tests.py` - Core user flow tests (authentication, boards, cards, search, etc.)
+- `boards/tests_checklists.py` - Checklist and subtask functionality
+- `boards/tests_realtime.py` - Real-time broadcast tests (Channels)
+- `boards/tests_search.py` - Global search functionality
+- `boards/tests_additional.py` - Additional endpoint tests (reorder, labels, comments, notifications, export, error handling)
+- `boards/tests_websocket.py` - WebSocket consumer tests
+
+Total: **78 tests** covering all major functionality.
+
+The test suite includes:
+- Unit tests for all API endpoints
+- Integration tests for user workflows
+- WebSocket connection and broadcast tests
+- Permission and access control tests
+- Error handling and validation tests
