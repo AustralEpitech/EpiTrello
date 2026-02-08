@@ -1,0 +1,96 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - secretName: tls-app
+      hosts:
+        - "$BASE_URL"
+  rules:
+    - host: "$BASE_URL"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app
+                port:
+                  name: anubis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  labels:
+    app: app
+spec:
+  selector:
+    app: app
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+    - name: anubis
+      port: 8923
+      targetPort: anubis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  labels:
+    app: app
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: "$IMAGEAPP"
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: POSTGRES_HOST
+              value: postgres-rw
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: dbname
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app
+                  key: password
+            - name: REDIS_URL
+              value: redis://valkey
+          envFrom:
+            - secretRef:
+                name: django
+        - name: anubis
+          image: ghcr.io/techarohq/anubis:v1.24.0
+          ports:
+            - name: anubis
+              containerPort: 8923
+          envFrom:
+            - secretRef:
+                name: anubis
+          env:
+            - name: TARGET
+              value: http://localhost:8000

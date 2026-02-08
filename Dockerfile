@@ -1,6 +1,6 @@
 FROM docker.io/python:3.14-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH=/opt/venv/bin:$PATH
 
 FROM base AS build
 RUN python -m venv /opt/venv/
@@ -12,5 +12,5 @@ COPY --from=build /opt/venv /opt/venv/
 COPY epitrello/ epitrello/
 COPY boards/ boards/
 COPY manage.py .
-RUN SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput
+RUN DEBUG=1 python manage.py collectstatic --noinput
 CMD ["uvicorn", "--host", "0", "epitrello.asgi:application"]

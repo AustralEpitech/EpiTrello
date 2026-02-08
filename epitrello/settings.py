@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-DEBUG = getenv("DEBUG", "0") == "1"
+DEBUG = bool(getenv("DEBUG", False))
 
 SECRET_KEY = getenv("SECRET_KEY")
 if not SECRET_KEY:
@@ -40,7 +40,6 @@ ALLOWED_HOSTS = getenv("ALLOWED_HOSTS", "127.0.0.1").split(",")
 logging.debug(f"ALLOWED_HOSTS set to: {ALLOWED_HOSTS}")
 
 INSTALLED_APPS = [
-    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
