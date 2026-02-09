@@ -2,7 +2,7 @@
 set -o pipefail
 
 kapply() {
-    for f in "$@"; do
+    local f; for f in "$@"; do
         kubectl apply --server-side \
             -f<(envsubst "$(env | sed 's/^/$/')" < "manifests/$f")
     done
@@ -32,6 +32,12 @@ kgcmkey() {
     kubectl get configmap "$cm" -ojson | jq -re ".data.\"$key\""
 }; export -f kgcmkey
 
+krm() {
+    kubectl delete "${@/#/-f}" 2> /dev/null || true
+}
+
+
+krm common/job.yaml
 
 kapply common/db.yaml
 
