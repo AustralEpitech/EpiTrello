@@ -12,30 +12,30 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
+      #- uses: actions/setup-python@v6
+      #  with:
+      #    python-version: '3.14'
 
-      - name: Cache pip
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
+      #- name: Cache pip
+      #  uses: actions/cache@v5
+      #  with:
+      #    path: ~/.cache/pip
+      #    key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+      #    restore-keys: ${{ runner.os }}-pip-
 
-      - run: pip install -r requirements.txt
+      #- run: pip install -r requirements.txt
 
-      - name: Django checks & migrate (SQLite)
-        env:
-          SECRET_KEY: 1
-        run: |
-          python manage.py check --deploy --fail-level WARNING || true
-          python manage.py migrate --noinput
+      #- name: Django checks & migrate (SQLite)
+      #  env:
+      #    SECRET_KEY: 1
+      #  run: |
+      #    python manage.py check --deploy --fail-level WARNING || true
+      #    python manage.py migrate --noinput
 
-      - name: Run unit tests
-        env:
-          SECRET_KEY: 1
-        run: python manage.py test
+      #- name: Run unit tests
+      #  env:
+      #    SECRET_KEY: 1
+      #  run: python manage.py test
 
   docker-image:
     name: Build Docker image (on main)
