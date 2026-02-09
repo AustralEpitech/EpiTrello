@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-DEBUG = bool(getenv("DEBUG", False))
+DEBUG = getenv("DEBUG", "0") == "1"
 
 SECRET_KEY = getenv("SECRET_KEY")
 if not SECRET_KEY:
@@ -36,7 +36,7 @@ if not SECRET_KEY:
             "SECRET_KEY environment variable is required in production (DEBUG=False)."
         )
 
-ALLOWED_HOSTS = getenv("ALLOWED_HOSTS", "127.0.0.1").split(",")
+ALLOWED_HOSTS = getenv("ALLOWED_HOSTS", "localhost").split(",") + ["127.0.0.1"]
 logging.debug(f"ALLOWED_HOSTS set to: {ALLOWED_HOSTS}")
 
 INSTALLED_APPS = [
@@ -154,7 +154,11 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STORAGES = {
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage" if not DEBUG else "whitenoise.storage.CompressedStaticFilesStorage",
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "whitenoise.storage.CompressedStaticFilesStorage"
+        ),
     },
 }
 

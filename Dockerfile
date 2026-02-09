@@ -8,9 +8,10 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 FROM base
+WORKDIR /app/
 COPY --from=build /opt/venv /opt/venv/
 COPY epitrello/ epitrello/
 COPY boards/ boards/
 COPY manage.py .
-RUN DEBUG=1 python manage.py collectstatic --noinput
+RUN SECRET_KEY=1 python manage.py collectstatic --noinput
 CMD ["uvicorn", "--host", "0", "epitrello.asgi:application"]
