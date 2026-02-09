@@ -27,14 +27,14 @@ jobs:
 
       - name: Django checks & migrate (SQLite)
         env:
-          DEBUG: True
+          SECRET_KEY: 1
         run: |
           python manage.py check --deploy --fail-level WARNING || true
           python manage.py migrate --noinput
 
       - name: Run unit tests
         env:
-          DEBUG: True
+          SECRET_KEY: 1
         run: python manage.py test
 
   docker-image:
