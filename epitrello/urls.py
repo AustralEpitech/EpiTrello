@@ -37,9 +37,13 @@ urlpatterns = [
         auth_views.PasswordChangeDoneView.as_view(),
         name="password_change_done",
     ),
+    # Vue de login standard Django avec redirection explicite vers board_list
+    path("login/", auth_views.LoginView.as_view(
+        template_name="registration/login.html",
+        redirect_authenticated_user=True,
+        next_page="boards:board_list"
+    ), name="login"),
     path("accounts/", include("allauth.urls")),
-    # Alias 'login' pour compatibilité avec LOGIN_URL et @login_required
-    path("accounts/login/", allauth_views.LoginView.as_view(), name="login"),
     path("logout/", board_views.logout_view, name="logout"),
     path("", board_views.home, name="home"),
     path("boards/", include("boards.urls")),
