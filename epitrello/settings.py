@@ -46,8 +46,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "channels",
+    "django.contrib.sites",
+    # Boards AVANT allauth pour que nos templates soient prioritaires
     "boards",
+    "channels",
+    # Django-allauth
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.github",
 ]
 
 MIDDLEWARE = [
@@ -59,6 +67,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "epitrello.urls"
@@ -165,6 +174,54 @@ STORAGES = {
 LOGIN_REDIRECT_URL = "boards:board_list"
 LOGOUT_REDIRECT_URL = "home"
 LOGIN_URL = "login"
+
+# Django Sites Framework (required by allauth)
+SITE_ID = 1
+
+# Django-allauth configuration
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# Allauth settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = "username_email"
+ACCOUNT_EMAIL_VERIFICATION = "optional"
+ACCOUNT_SIGNUP_REDIRECT_URL = "boards:board_list"
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "optional"
+
+# Social providers configuration
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": [
+            "profile",
+            "email",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        },
+        "APP": {
+            "client_id": getenv("GOOGLE_CLIENT_ID", ""),
+            "secret": getenv("GOOGLE_CLIENT_SECRET", ""),
+            "key": "",
+        },
+    },
+    "github": {
+        "SCOPE": [
+            "user",
+            "email",
+        ],
+        "APP": {
+            "client_id": getenv("GITHUB_CLIENT_ID", ""),
+            "secret": getenv("GITHUB_CLIENT_SECRET", ""),
+            "key": "",
+        },
+    },
+}
+
 
 # Email backend for development
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

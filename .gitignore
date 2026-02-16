@@ -187,7 +187,6 @@ staticfiles/
 COVERAGE_REPORT.md
 
 # Test outputs
-output.txt
 test_results.txt
 
 # IDE configuration

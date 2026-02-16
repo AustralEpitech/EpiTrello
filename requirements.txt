@@ -8,4 +8,8 @@ uvicorn~=0.38
 whitenoise~=6.9
 daphne~=4.1
 coverage~=7.6
+django-allauth~=65.4.0
+requests~=2.32
+PyJWT~=2.9
+
 

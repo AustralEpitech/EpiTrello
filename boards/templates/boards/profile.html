@@ -24,7 +24,7 @@
             </div>
             <nav class="flex items-center gap-4 text-sm">
                 <a href="{% url 'boards:board_list' %}" class="rounded-full bg-white/10 px-4 py-2 font-semibold text-white hover:bg-white/20 btn-focus-visible" data-tooltip="Voir tous mes espaces">Mes tableaux</a>
-                <form action="{% url 'logout' %}" method="post" class="inline">
+                <form action="{% url 'account_logout' %}" method="post" class="inline">
                     {% csrf_token %}
                     <button type="submit" class="rounded-full border border-white/20 px-4 py-2 font-semibold text-white hover:bg-white/10 btn-focus-visible" data-tooltip="Quitter la session">Déconnexion</button>
                 </form>

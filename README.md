@@ -34,6 +34,60 @@ To populate the database with test data (users: admin, alice, bob):
 python manage.py seed
 ```
 
+## OAuth Authentication (Google & GitHub)
+
+EpiTrello supports OAuth authentication with Google and GitHub providers.
+
+### Configuration
+
+To enable OAuth authentication, you need to configure the providers in your `.env` file:
+
+#### Google OAuth Setup
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Navigate to **APIs & Services** > **Credentials**
+4. Click **Create Credentials** > **OAuth client ID**
+5. Select **Web application** as the application type
+6. Configure the authorized redirect URIs:
+   - For local development: `http://localhost:8000/accounts/google/login/callback/`
+   - For production: `https://yourdomain.com/accounts/google/login/callback/`
+7. Copy the **Client ID** and **Client Secret**
+8. Add them to your `.env` file:
+
+```bash
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+```
+
+#### GitHub OAuth Setup
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click **New OAuth App**
+3. Fill in the application details:
+   - **Application name**: EpiTrello (or your preferred name)
+   - **Homepage URL**: `http://localhost:8000` (or your production URL)
+   - **Authorization callback URL**: 
+     - For local: `http://localhost:8000/accounts/github/login/callback/`
+     - For production: `https://yourdomain.com/accounts/github/login/callback/`
+4. Click **Register application**
+5. Copy the **Client ID** and generate a **Client Secret**
+6. Add them to your `.env` file:
+
+```bash
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+```
+
+### Usage
+
+Once configured, users will see **"Continue with Google"** and **"Continue with GitHub"** buttons on the login and signup pages. Users can authenticate using their Google or GitHub accounts without creating a separate password.
+
+### Note for Development
+
+If you don't configure OAuth credentials, the OAuth buttons will still appear but will not work. The traditional username/password authentication will continue to work normally.
+
+
 
 ## Real-time (Django Channels)
 

@@ -31,8 +31,9 @@ urlpatterns = [
         board_views.CustomPasswordChangeView.as_view(),
         name="password_change",
     ),
-    path("accounts/", include("django.contrib.auth.urls")),
+    path("accounts/", include("allauth.urls")),
     path("logout/", board_views.logout_view, name="logout"),
     path("", board_views.home, name="home"),
     path("boards/", include("boards.urls")),
 ]
+
