@@ -124,8 +124,22 @@
         const renameForm = document.getElementById('rename-form')
         const toastStack = document.getElementById('toast-stack')
         const loader = document.getElementById('global-loader')
-        const showLoader = () => { loader.classList.remove('opacity-0', 'invisible'); loader.classList.add('opacity-100', 'visible') }
-        const hideLoader = () => { loader.classList.add('opacity-0', 'invisible'); loader.classList.remove('opacity-100', 'visible') }
+        let loaderTimeout = null
+        const showLoader = () => { 
+            loader.classList.remove('opacity-0', 'invisible'); 
+            loader.classList.add('opacity-100', 'visible');
+            // Fail-safe: auto-hide after 15 seconds if not manually hidden
+            if (loaderTimeout) clearTimeout(loaderTimeout);
+            loaderTimeout = setTimeout(hideLoader, 15000);
+        }
+        const hideLoader = () => { 
+            if (loaderTimeout) clearTimeout(loaderTimeout);
+            loader.classList.add('opacity-0', 'invisible'); 
+            loader.classList.remove('opacity-100', 'visible');
+        }
+        
+        // Force hide loader on page load in case it was left visible
+        hideLoader()
 
         function navigateBoard(url) {
             window.location.href = url
