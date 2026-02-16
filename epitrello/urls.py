@@ -20,6 +20,7 @@ from django.urls import path, include
 from django.http import HttpResponse
 from boards import views as board_views
 from django.contrib.auth import views as auth_views
+from allauth.account import views as allauth_views
 
 
 
@@ -32,6 +33,8 @@ urlpatterns = [
         name="password_change",
     ),
     path("accounts/", include("allauth.urls")),
+    # Alias 'login' pour compatibilité avec LOGIN_URL et @login_required
+    path("accounts/login/", allauth_views.LoginView.as_view(), name="login"),
     path("logout/", board_views.logout_view, name="logout"),
     path("", board_views.home, name="home"),
     path("boards/", include("boards.urls")),
