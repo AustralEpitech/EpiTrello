@@ -32,6 +32,11 @@ urlpatterns = [
         board_views.CustomPasswordChangeView.as_view(),
         name="password_change",
     ),
+    path(
+        "accounts/password_change/done/",
+        auth_views.PasswordChangeDoneView.as_view(),
+        name="password_change_done",
+    ),
     path("accounts/", include("allauth.urls")),
     # Alias 'login' pour compatibilité avec LOGIN_URL et @login_required
     path("accounts/login/", allauth_views.LoginView.as_view(), name="login"),
