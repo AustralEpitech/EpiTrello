@@ -33,8 +33,8 @@ kgcmkey() {
 }; export -f kgcmkey
 
 krm() {
-    kubectl delete "${@/#/-f}" 2> /dev/null || true
-}
+    kubectl delete --ignore-not-found=true "${@/#/-f}"
+}; export -f krm
 
 
 krm common/job.yaml
