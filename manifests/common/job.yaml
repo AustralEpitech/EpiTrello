@@ -5,9 +5,6 @@ metadata:
   name: migrate
 spec:
   template:
-    metadata:
-      labels:
-        job-name: migrate
     spec:
       restartPolicy: Never
       containers:
