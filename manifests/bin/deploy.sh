@@ -33,7 +33,7 @@ kgcmkey() {
 }; export -f kgcmkey
 
 krm() {
-    kubectl delete --ignore-not-found=true "${@/#/-f}"
+    kubectl delete --ignore-not-found=true "${@/#/-fmanifests/}"
 }; export -f krm
 
 
